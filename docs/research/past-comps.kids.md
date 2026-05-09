@@ -1,300 +1,301 @@
-# How AI Bots Won Past Game Competitions — Plain English Edition
+# 過去のゲームコンペで AI ボットがどうやって勝ったか — 平易な日本語版
 
-> Written for someone smart but new to AI/ML. If a word is in **bold italics** the first time it appears, look it up in the glossary at the bottom.
+> 賢いけれど AI/ML に新しい人向け。**太字斜体** で初出した用語は、最後の用語集で確認してください。
 
-This is a research summary for a Kaggle competition called **orbit-wars**. orbit-wars is a 2-player game played on a computer where each side commands fleets of spaceships flying around planets. The goal is to capture more planets than your opponent.
+これは **orbit-wars** という Kaggle コンペの調査サマリーです。orbit-wars は 2 人で対戦するコンピュータゲームで、各陣営が惑星のまわりを飛ぶ宇宙艦隊を指揮します。ゴールは相手より多くの惑星を捕獲すること。
 
-Kaggle has run several similar games in the past. Studying who won them, and *how* they won, tells us what to build for orbit-wars.
+Kaggle は過去にも似たゲームを何度か開催してきました。誰がどう勝ったかを研究することで、orbit-wars 用に何を作ればよいかが見えてきます。
 
 ---
 
-## The big question: do we hand-write rules, or train an AI to learn?
+## 大きな問い: ルールを手で書くか、それとも AI に学習させるか？
 
-There are basically three ways to make a bot for these games:
+これらのゲーム用ボットを作る方法は基本的に 3 つあります:
 
 ```
   ┌──────────────────────────────────────────┐
-  │  Three ways to build a game-playing bot  │
+  │  ゲーム対戦ボットを作る 3 つの方法         │
   └──────────────────────────────────────────┘
 
    1. HEURISTIC          2. IMITATION             3. REINFORCEMENT
-      ("rule-based")        ("copy the pros")        LEARNING ("RL")
+      ("ルールベース")        ("プロを真似る")          LEARNING ("RL")
    ────────────────      ─────────────────         ────────────────────
-   Programmer thinks     Watch lots of replays     Bot starts random,
-   "if enemy is closer   from top players,         plays millions of
-   than X, run away"     train neural net to       games against itself,
-   and codes that.       predict their moves.      gradually learns what
-                                                   wins.
-   Like writing a        Like watching a chess     Like an alien who
-   chess opening book.   master and copying.       learned chess by
-                                                   only knowing the
-                                                   final score.
+   プログラマが            上位プレイヤーの          ボットはランダムに
+   「敵が X より近かったら   リプレイをたくさん見て、  始まり、自分自身と
+   逃げる」と考えて        ニューラルネットに         何百万回もゲームを
+   コードに書く。           手を真似させる。           して、勝つ手を
+                                                    だんだん学んでいく。
+   チェスの定跡集を         チェスの達人を見て        最終スコアしか
+   書くようなもの。          真似する宇宙人のような    知らない宇宙人が
+                            もの。                    チェスを覚える
+                                                    ようなもの。
 ```
 
-In Kaggle's history, **all three have won different competitions**. The winning approach depends on (a) how complex the game is, (b) whether good replays are available to copy from, and (c) how much computer power the team has.
+Kaggle の歴史では **3 つすべてが、それぞれ違うコンペで勝ってきました**。どのアプローチが勝つかは、(a) ゲームがどれくらい複雑か、(b) コピー元になる良いリプレイがあるか、(c) チームがどれくらい計算資源を持っているかで決まります。
 
 ---
 
-## The 9 competitions we studied (sorted from most-recent to oldest)
+## 調査した 9 つのコンペ (新しい順)
 
-### 1. Lux AI Season 3 (2024-2025) — **Reinforcement Learning won**
+### 1. Lux AI Season 3 (2024-2025) — **強化学習が勝った**
 
-In this game, two AI agents compete on a 24×24 grid. The unusual twist: some game rules are *hidden* from the players, and matches are best-of-5 so the bot has to learn what's happening as it plays.
+このゲームは 24×24 のグリッドで 2 つの AI が競います。変わった点: 一部のゲームルールがプレイヤーから *隠されて* おり、対戦は best-of-5 なのでボットは試合中に何が起きているかを学ぶ必要があります。
 
-**Winner: "Frog Parade" by Isaiah Pressman**
+**優勝: "Frog Parade" by Isaiah Pressman**
 
-He used a method called **_PPO_** (a kind of reinforcement learning) on a neural network with about 10 million parameters, training for ~8 days on a single high-end gaming GPU (RTX 3090).
+彼は **_PPO_** (強化学習の一種) を使い、約 1000 万パラメータのニューラルネットを単一のハイエンドゲーミング GPU (RTX 3090) で約 8 日間学習させました。
 
-His three coolest tricks:
-- **Wrote the game in Rust** to make it run 10× faster, so his bot could practice ~110,000 game-moves per second.
-- **Detective work**: since some rules were hidden, his bot would *deduce* them by watching how the game state changed turn-to-turn — like figuring out the rules of Battleship from each "hit" or "miss" reply.
-- **Mirror trick**: the game is symmetric (looks the same if you flip it diagonally), so he showed his bot the same situation in 4 different orientations, effectively quadrupling his training data.
+彼のクールなトリック 3 つ:
+- **ゲームを Rust で書き直し**、10 倍高速にした。これでボットは秒間約 11 万手を練習できた。
+- **探偵的推論**: 一部のルールが隠されていたので、ターンごとにゲーム状態がどう変わるかを見てルールを *推理* した — まるで「当たり/外れ」の応答からバトルシップのルールを推測するように。
+- **ミラートリック**: ゲームは対称 (対角線で反転しても同じに見える) なので、同じ状況をボットに 4 通りの向きで見せ、実質的に学習データを 4 倍にした。
 
 > Writeup: https://github.com/IsaiahPressman/kaggle-lux-2024/blob/main/write-up.md
 
-**Why this matters for orbit-wars:** The mirror trick is a freebie — orbit-wars also has rotational symmetry around the center. We should always train with this kind of data flipping, and the Rust-rewrite trick is the secret weapon: a 10× faster game simulator makes everything else 10× cheaper.
+**orbit-wars にとっての意味:** ミラートリックはタダで使える — orbit-wars にも中心まわりの回転対称性がある。この種のデータ反転は常に学習に使うべきで、Rust 書き直しトリックが秘密兵器: 10 倍速いゲームシミュレータがあれば、他のすべてが 10 倍安くなる。
 
 ---
 
-### 2. Lux AI Season 2 (2023) — **Hand-written rules won, surprisingly**
+### 2. Lux AI Season 2 (2023) — **意外にも手書きルールが勝った**
 
-This was a follow-up where you control workers, factories, and grow alien plant life called "lichen" on a grid. The competition organizers literally *gave away* a billion frames of expert play, hoping people would train AI on it.
+これは続編で、ワーカー、工場を制御し、グリッド上で「lichen」というエイリアン植物を育てます。コンペ主催者は AI 学習を期待して、文字どおり 10 億フレームのエキスパートプレイデータを *配布* しました。
 
-**Winner: "ry-andy" — pure Python, hand-written rules. No AI.** ([repo](https://github.com/ryandy/Lux-S2-public))
+**優勝: "ry-andy" — 純粋 Python、手書きルール。AI 一切なし。** ([repo](https://github.com/ryandy/Lux-S2-public))
 
-Despite all the free training data, the competition was won by someone who just thought really hard about the game and wrote good rules. He beat 645 other teams.
+無料の学習データがあったにもかかわらず、コンペはゲームをじっくり考えて良いルールを書いた人が勝ちました。彼は他の 645 チームを破ったのです。
 
 > Writeup: https://www.kaggle.com/competitions/lux-ai-season-2/writeups/ry-andy-1st-place-solution
 
-**Why this matters for orbit-wars:** Don't rush to train an AI before you've tried the boring hand-written approach. A really clever rule-based bot can beat a mediocre trained AI. Build the hand-written one first, then improve from there.
+**orbit-wars にとっての意味:** AI を学習させる前に、退屈な手書きアプローチを試すべき。本当に賢いルールベースボットは、平凡な学習済み AI に勝てる。まず手書きを作ってから、そこから改良する。
 
 ---
 
-### 3. Kore 2022 — **Imitation Learning won**
+### 3. Kore 2022 — **模倣学習が勝った**
 
-Players control fleets of spaceships mining minerals. Each fleet's "plan" is just a string like `N 10 W 5 E 3` (go North 10 turns, West 5, East 3).
+プレイヤーは鉱物を採掘する宇宙艦隊を制御します。各艦隊の「プラン」は単に `N 10 W 5 E 3` (北に 10 ターン、西に 5、東に 3) のような文字列です。
 
-**Winner: khanhvu207** treated the problem like Google Translate — translating a *picture of the game* into a *string of moves*.
+**優勝: khanhvu207** はこの問題を Google 翻訳のように扱った — *ゲームの絵* を *手の文字列* に翻訳する形に。
 
-His method, called **_imitation learning_**, worked like this:
+彼の手法、**_imitation learning (模倣学習)_** はこう動きます:
 
 ```
-   Step 1: Download replays from top 5 players
+   Step 1: 上位 5 プレイヤーのリプレイをダウンロード
            ↓
-           200,000,000 examples of (game-state → ship-plan)
-   Step 2: Train a giant Transformer (same kind of NN as ChatGPT)
-           to read a game state and write the right plan
+           2 億組の (ゲーム状態 → 船プラン) サンプル
+   Step 2: 巨大な Transformer (ChatGPT と同じ NN) を学習
+           ゲーム状態を読んで正しいプランを書けるように
            ↓
-   Step 3: Submit the trained model. It plays like the top 5 averaged.
+           ↓
+   Step 3: 学習済みモデルを提出。トップ 5 の平均的なプレイをする。
 ```
 
-He used 2 very expensive GPUs (A100, $10,000 each) for training. His coolest trick: he **threw away 60% of the picture** during training — the bot had to learn to make decisions even with most of the information missing, which made it way more robust.
+彼は学習に超高価な GPU を 2 台使った (A100、1 台 1 万ドル)。クールなトリック: 学習中に **絵の 60% を捨てた** — ボットは情報の大半が欠けていても判断できなければならず、結果的にずっと頑健になった。
 
 > Writeup: https://www.kaggle.com/competitions/kore-2022/discussion/340035 · Repo: https://github.com/khanhvu207/kore2022
 
-**Why this matters for orbit-wars:** Once a few good bots exist on the leaderboard, we can scrape their replays and train a copycat. This is a very efficient way to skip the hard part.
+**orbit-wars にとっての意味:** リーダーボードに良いボットが何人か出たら、リプレイをスクレイプして真似ボットを学習できる。難しい部分をスキップする非常に効率的な方法。
 
 ---
 
-### 4. Halite II (2017-2018) — **THE most similar past game**
+### 4. Halite II (2017-2018) — **過去で最も似たゲーム**
 
-Halite II is the past competition that looks the most like orbit-wars: 2D continuous space (no grid), spaceships, planets, fleet vs fleet combat.
+Halite II は orbit-wars に最も似た過去コンペ: 2D 連続空間 (グリッドなし)、宇宙船、惑星、艦隊対艦隊の戦闘。
 
-**Top 3:**
-- 1st: **reCurs3** (a developer at Ubisoft Montreal who works on Assassin's Creed)
-- 2nd: **FakePsyho** (a Polish puzzle champion now at OpenAI)
-- 3rd: **shummie** (an actuary at an insurance company)
+**トップ 3:**
+- 1 位: **reCurs3** (Ubisoft Montreal の開発者で Assassin's Creed を作っている)
+- 2 位: **FakePsyho** (現在 OpenAI のポーランド出身パズル王者)
+- 3 位: **shummie** (保険会社のアクチュアリー)
 
-All three used hand-written rules, no AI. Here are the gems they invented:
+3 人全員が手書きルール、AI なし。彼らが発明した宝石を紹介します:
 
-#### The "fight or flight" formula (reCurs3)
-
-```
-For each of MY ships:
-  count_enemies_nearby   = how many enemy ships within radius
-  count_friends_nearby   = how many of my ships within radius
-
-  if enemies > friends:  RUN AWAY
-  else:                  ATTACK
-```
-
-#### How to run away — the "Coulomb particle" trick
-
-If a ship decides to run, it doesn't pick a random direction. It runs **straight away from the AVERAGE position of all nearby enemies**, like a negative magnet repelled by other negative magnets:
+#### 「戦闘 or 逃走」公式 (reCurs3)
 
 ```
-                                  fleeing ship
+自軍の各船について:
+  count_enemies_nearby   = 半径内の敵船の数
+  count_friends_nearby   = 半径内の自軍船の数
+
+  if 敵 > 味方:  逃げる
+  else:          攻撃
+```
+
+#### 逃げ方 — 「クーロン粒子」トリック
+
+船が逃げると決めたら、ランダムな方向には行かない。**近くの敵全部の平均位置からまっすぐ離れる方向** に逃げる。負電荷の磁石が他の負電荷の磁石から反発されるように:
+
+```
+                                  逃げる船
                                        △
                                        │
-                                       │  (run vector = -average(enemies))
+                                       │  (逃走ベクトル = -average(敵))
                                        │
-       ☠ ─────── center ─────── ☠
-       └────────── enemies cluster ──┘
+       ☠ ─────── 中心 ─────── ☠
+       └────────── 敵クラスタ ──┘
 ```
 
-#### "Desertion" — a sneaky 4-player trick (shummie)
+#### 「Desertion (脱走)」 — 4 人対戦のずるいトリック (shummie)
 
-In 4-player matches, you can hide one ship in a far corner. Even if all your other ships die, that one corner-ship lets you *outlive* opponents who eliminate each other, sneaking you into 2nd place. It's the "play dead until everyone else fights" strategy.
+4 人対戦では、1 隻だけ遠い隅に隠せる。他の船が全員死んでも、その隅の 1 隻のおかげで *対戦相手より長生きでき*、互いに潰し合った相手を出し抜いて 2 位に滑り込める。「全員が戦い終わるまで死んだふり」戦略。
 
-#### "Don't follow the same enemy with too many ships" (FakePsyho)
+#### 「同じ敵を多すぎる船で追わない」 (FakePsyho)
 
-If too many of your ships chase one enemy, the rest of your fleet bunches up and you lose territory. Cap how many ships can target each enemy.
+自軍の船が 1 体の敵を多すぎる船で追うと、残りの艦隊が固まって領土を失う。1 体の敵をターゲットにできる船数に上限を設ける。
 
-> Writeups: https://recursive.cc/blog/halite-ii-post-mortem.html (1st), https://github.com/FakePsyho/halite2 (2nd), https://shummie.github.io/Halite-2-Shummie/ (3rd) · Top-3 review: https://lakesidethinks.com/post/2018/10/halite2-strategy.html
+> Writeups: https://recursive.cc/blog/halite-ii-post-mortem.html (1 位)、https://github.com/FakePsyho/halite2 (2 位)、https://shummie.github.io/Halite-2-Shummie/ (3 位) · トップ 3 レビュー: https://lakesidethinks.com/post/2018/10/halite2-strategy.html
 
-**Why this matters for orbit-wars:** orbit-wars is essentially Halite II with different combat math. Almost every trick above transfers directly. The fight-or-flight formula is probably the first thing we should code.
-
----
-
-### 5. Halite IV (2020) — **Hybrid: rules + a tiny AI**
-
-A 4-player grid game. Winner **ttvand (Tom Van de Wiele)** used hand-written strategy *plus* a small neural network just to predict what opponents would do next ([repo](https://github.com/ttvand/Halite)).
-
-The 4th-place team wrote a 100% rule-based bot ([0Zeta repo](https://github.com/0Zeta/HaliteIV-Bot)) and they shared excellent lessons:
-
-- **"Plantation" farming**: place 3 outposts in a triangle around a resource cluster, harvest the middle. Defensible AND efficient.
-- **Decide all moves at once** using something called the Hungarian Algorithm — instead of "ship 1 moves, then ship 2 reacts to ship 1", do `assign all 50 ships their best move simultaneously`. Much smarter.
-- **Recompute every ship's role every turn** — don't let stale plans hang around.
-
-Their honest list of regrets is gold:
-1. Bug submitted the day before deadline broke their bot
-2. Too many tunable parameters → fragile
-3. No replay-analysis tools → couldn't debug
-4. Pathfinding was missing → ship traffic jams
-
-**Why this matters for orbit-wars:** All four regrets are warnings for us. Build replay tools early. Submit early. Don't add too many tuning knobs.
+**orbit-wars にとっての意味:** orbit-wars は本質的に戦闘計算が違うだけの Halite II。上記のほぼすべてのトリックが直接転用できる。戦闘 or 逃走の公式はおそらく最初にコードすべきもの。
 
 ---
 
-### 6. Halite III (2018-2019) — **Algorithmic rules with one neural net**
+### 5. Halite IV (2020) — **ハイブリッド: ルール + 小さな AI**
 
-Winner **teccles** ran the **_Dijkstra algorithm_** for every single ship every turn, computing "how much halite per turn would I earn if I went to square X" for every X on the board. Best-square wins.
+4 人プレイのグリッドゲーム。優勝の **ttvand (Tom Van de Wiele)** は手書き戦略 *プラス* 相手の次の手を予測するためだけの小型ニューラルネットを使った ([repo](https://github.com/ttvand/Halite))。
 
-The 6th-place team **TheDuck314** had a great hybrid trick: they trained a neural network to predict opponent moves, then would only commit to a move if the NN said "you're at least 98% safe". Risk-averse AI.
+4 位チームは 100% ルールベースのボットを書き ([0Zeta repo](https://github.com/0Zeta/HaliteIV-Bot))、優れた教訓を共有してくれた:
+
+- **「プランテーション」農法**: リソースクラスタの周りに 3 つの拠点を三角形に配置し、中央を採掘する。守りやすく、効率的。
+- **全手を一度に決める** Hungarian Algorithm という方法を使う — 「船 1 が動いて、船 2 が船 1 に反応して」ではなく `50 隻全員のベスト手を同時に割り当て`。ずっと賢い。
+- **毎ターン全船の役割を再計算** — 古いプランを残さない。
+
+彼らの正直な後悔リストは金:
+1. 締切前日に提出したバグでボットが壊れた
+2. チューニング可能パラメータが多すぎて壊れやすかった
+3. リプレイ解析ツールなしでデバッグできなかった
+4. パスファインディングがなく船の渋滞が発生した
+
+**orbit-wars にとっての意味:** これら 4 つの後悔は全部我々への警告。リプレイツールを早く作る。早く提出する。チューニングつまみを増やしすぎない。
+
+---
+
+### 6. Halite III (2018-2019) — **アルゴリズム的ルール + 1 つのニューラルネット**
+
+優勝の **teccles** は毎ターン全船で **_Dijkstra アルゴリズム_** を実行し、盤面の全マスについて「マス X に行けばターンあたり何 halite 稼げるか」を計算した。最良マス勝ち。
+
+6 位の **TheDuck314** チームには優れたハイブリッドトリックがあった: 相手の手を予測する NN を学習させ、「あなたは少なくとも 98% 安全」と NN が言ったときだけ手を commit する。リスク回避型 AI。
 
 > Writeups: https://github.com/teccles-halite/halite3-bot · https://github.com/TheDuck314/halite2018
 
-**Why this matters for orbit-wars:** The 98%-safety NN is a clean way to add ML to a heuristic bot — small NN, big benefit. We should layer this on top of our heuristic in week 4-5.
+**orbit-wars にとっての意味:** 98% 安全度 NN は heuristic ボットに ML を加える綺麗な方法 — 小さな NN、大きな利益。我々も Week 4-5 で heuristic の上にこれを重ねるべき。
 
 ---
 
-### 7. Lux AI Season 1 (2021) — **Deep RL won**
+### 7. Lux AI Season 1 (2021) — **Deep RL が勝った**
 
-Game has a day/night cycle, day means harvest, night means survive. **Toad Brigade** team won using pure reinforcement learning.
+ゲームには昼夜サイクルがあり、昼は採取、夜は生存。**Toad Brigade** チームが純粋な強化学習で勝った。
 
-They started with hand-written rules but the RL agent surpassed it within the first month, so they pivoted entirely to RL.
+彼らも手書きルールから始めたが、最初の 1 ヶ月以内に RL エージェントが超えたので完全に RL に切り替えた。
 
-Key technical detail: they did NOT use the popular **_PPO_** algorithm. They used **_IMPALA_** with two extras called UPGO and TD(λ). This is technical, but the point is: the default RL algorithm isn't always the right one.
+技術的に重要な点: 彼らは人気の **_PPO_** アルゴリズムを使わなかった。**_IMPALA_** に UPGO と TD(λ) という拡張を加えたものを使った。技術的だがポイントは: デフォルトの RL アルゴリズムが常に正解とは限らない。
 
 > Writeup: https://www.kaggle.com/competitions/lux-ai-2021/writeups/toad-brigade-toad-brigade-s-approach-deep-reinforc
 
-**Why this matters for orbit-wars:** If we go down the RL path, look beyond plain PPO. Also: Toad Brigade's "test-time augmentation" trick (run the bot on the board, then on the rotated board, average the answers) is universally applicable.
+**orbit-wars にとっての意味:** RL の道を行くなら、単純な PPO の先を見ること。また Toad Brigade の「テスト時拡張」トリック (盤面でボットを実行 → 回転盤面でも実行 → 答えを平均) は普遍的に使える。
 
 ---
 
-### 8. Hungry Geese (2021) — **Self-play RL with late-game search**
+### 8. Hungry Geese (2021) — **Self-play RL + 終盤の探索**
 
-Four snakes on a tiny grid eating food. Won by the **HandyRL** team using **_self-play_** RL.
+小さなグリッド上で 4 匹の蛇が食べ物を食べる。**HandyRL** チームが **_self-play_** RL で優勝。
 
-Coolest trick: the **step-counter input**. They told the network "you're at turn 197 of 200" — this completely changed strategy in the endgame, like coaches yelling "two minutes left!" in basketball.
+クールなトリック: **ステップカウンタ入力**。彼らはネットワークに「あなたは 200 ターンの 197 ターン目」と教えた — これでエンドゲームの戦略がガラッと変わった。バスケットボールでコーチが「残り 2 分！」と叫ぶように。
 
-In the final month, the runners-up bolted **_MCTS_** (a search algorithm used in **_AlphaZero_**) on top of their trained network. The trained network gave intuitions, MCTS searched moves a few turns ahead. Big jump.
+最終月に、準優勝チームは学習済みネットワークの上に **_MCTS_** (**_AlphaZero_** で使われる探索アルゴリズム) を後付けした。学習済みネットワークが直感を与え、MCTS が数ターン先を探索する。大ジャンプ。
 
-> Framework: https://github.com/DeNA/HandyRL · Retrospective: https://zenn.dev/ktechb/articles/e2394bc27358c4
+> Framework: https://github.com/DeNA/HandyRL · 振り返り: https://zenn.dev/ktechb/articles/e2394bc27358c4
 
-**Why this matters for orbit-wars:** orbit-wars has comets that spawn at fixed turns (50, 150, 250, 350, 450) with predictable randomness — perfect for an MCTS-style search to plan around. The step-counter trick should be in our model from day 1.
-
----
-
-### 9. microRTS 2023 — **Imitation Learning + RL hybrid**
-
-A research RTS competition (not Kaggle). The winning team showed that:
-
-1. First train the bot to **copy** existing bots (imitation learning)
-2. Then **fine-tune** with RL (PPO)
-
-This combo beat starting RL from scratch. In one experiment, pure-RL training on a big map *got worse* mid-training (40% win rate → 20%).
-
-> Paper: https://arxiv.org/abs/2402.08112
-
-**Why this matters for orbit-wars:** Don't try to train RL from random initialization on the full game. First copy good bots, then fine-tune. This is now the consensus best practice.
+**orbit-wars にとっての意味:** orbit-wars には固定ターン (50, 150, 250, 350, 450) で予測可能なランダムさを持って出現する comet がある — MCTS スタイルの探索でこれを織り込む計画を立てるのに最適。ステップカウンタトリックは初日からモデルに入れるべき。
 
 ---
 
-## ASCII picture: the recommended phases for orbit-wars
+### 9. microRTS 2023 — **模倣学習 + RL ハイブリッド**
+
+研究系の RTS コンペ (Kaggle ではない)。優勝チームが示したのは:
+
+1. まずボットに既存ボットを **コピー** させる (模倣学習)
+2. その後 RL (PPO) で **fine-tune**
+
+この組合せは RL をスクラッチで始めるより強い。ある実験では大きなマップでの純粋 RL 学習が *中盤に悪化* した (勝率 40% → 20%)。
+
+> 論文: https://arxiv.org/abs/2402.08112
+
+**orbit-wars にとっての意味:** ランダム初期化からフルゲームで RL 学習を試みない。まず良いボットをコピーし、それから fine-tune する。これが今やコンセンサスのベストプラクティス。
+
+---
+
+## ASCII 図: orbit-wars 推奨フェーズ
 
 ```
   Week 1-2   Week 3-4    Week 5-6      Week 7-8
   ─────────  ─────────   ──────────    ─────────────────
   HEURISTIC  +NN OPP.    +BC POLICY    +RL FINETUNE
-  baseline   PREDICTOR   from replays  (warm start, not from scratch!)
+  ベースライン PREDICTOR   from replays  (warm start, スクラッチではない！)
   ↑          ↑           ↑             ↑
   Halite II  Halite III  Kore 2022     microRTS 2023
-  pattern    TheDuck314  pattern       BC→PPO pattern
-              pattern
+  パターン    TheDuck314  パターン       BC→PPO パターン
+              パターン
 
   ──────────────────────────────────►  TIME
 ```
 
-Each phase reuses the work from the previous phase. We're not throwing away the heuristic — the trained policies are layered on top.
+各フェーズは前フェーズの仕事を再利用する。heuristic を捨てるわけではない — 学習済みポリシーは上に重ねる。
 
 ---
 
-## When did each approach win?
+## それぞれのアプローチが勝った場面
 
-| Approach | Won what | Lost what |
+| アプローチ | 勝ったコンペ | 負けたコンペ |
 |---|---|---|
-| Hand-written rules | Halite II (top 3), Halite III (1st), Halite IV (1st, 4th), **Lux AI S2 (1st!)**, Kore 2022 (before IL bots arrived) | Lux AI S1, Lux AI S3, Hungry Geese, microRTS |
-| Imitation learning (copy pros) | Kore 2022 (1st), Halite IV (rank 8) | Lux AI S1, S3 (no expert data) |
-| Reinforcement learning | Lux AI S1 (1st), Lux AI S3 (1st), Hungry Geese (1st), microRTS (1st) | Halite II, III, IV, Lux AI S2 |
+| 手書きルール | Halite II (トップ 3)、Halite III (1 位)、Halite IV (1 位、4 位)、**Lux AI S2 (1 位！)**、Kore 2022 (IL ボット登場前) | Lux AI S1、Lux AI S3、Hungry Geese、microRTS |
+| 模倣学習 (プロを真似) | Kore 2022 (1 位)、Halite IV (8 位) | Lux AI S1、S3 (エキスパートデータなし) |
+| 強化学習 | Lux AI S1 (1 位)、Lux AI S3 (1 位)、Hungry Geese (1 位)、microRTS (1 位) | Halite II、III、IV、Lux AI S2 |
 
-**Pattern**: rules win when the game can be broken into local "obvious" decisions. Imitation wins when good demonstrators exist. RL wins when many units have to coordinate over long time horizons AND you have the compute.
+**パターン**: ゲームが局所的な「明らかな」決定に分割できるならルールが勝つ。良いデモンストレータが存在するなら模倣が勝つ。多くのユニットが長い時間軸で協調する必要があり計算資源があるなら RL が勝つ。
 
-orbit-wars sits in the middle — it's combinatorial like Halite II, but the winner of a *modern* (2024+) Kaggle simulation comp is probably going to use some ML. Best move: build all three layers, ship the strongest one.
-
----
-
-## Tricks every winner used (steal these all)
-
-1. **Action masking** — never let the bot consider an illegal move. (Used by every RL winner.)
-2. **Symmetry data augmentation** — flip the board to multiply your data. orbit-wars has 4-fold symmetry around (50, 50), so we get 4× free data.
-3. **Test-time augmentation** — at inference, run the model on board + rotated board, average predictions.
-4. **Custom fast simulator** — Lux S3 winner rewrote the env in Rust for ~10× speedup. Do this if going RL.
-5. **Limit ships per target** — FakePsyho's trick. Stops your fleet from clumping.
-6. **Step-count as input** — Hungry Geese trick for endgame switching.
+orbit-wars は中間に位置する — Halite II のように組合せ的だが、*近年の* (2024+) Kaggle シミュレーションコンペの優勝者はおそらく何らかの ML を使う。最善の動き: 3 層全部作って、最強のものを提出する。
 
 ---
 
-## Glossary
+## 全優勝者が使ったトリック (全部盗め)
 
-- **Heuristic / rule-based**: a bot whose behavior is hand-coded by a programmer using `if-then-else` statements (no learning involved).
-- **Imitation Learning (IL)** / **Behavioral Cloning (BC)**: training a neural network to mimic the moves a human or top bot made, using their replay data as examples.
-- **Reinforcement Learning (RL)**: a bot starts knowing nothing, plays games, and slowly learns by being rewarded (+1) for wins and punished (−1) for losses. Like training a dog with treats.
-- **Self-play**: when an RL bot trains by playing copies of itself. Very powerful, but can collapse into weird local strategies if not managed carefully.
-- **PPO (Proximal Policy Optimization)**: the most popular RL algorithm. Standard baseline.
-- **IMPALA**: a different RL algorithm, more efficient for distributed training. Used by Toad Brigade.
-- **MCTS (Monte Carlo Tree Search)**: a planning algorithm that simulates many possible move-sequences ahead and picks the one with the best simulated outcome.
-- **AlphaZero**: a famous DeepMind system that combines self-play RL with MCTS. Beat human world champions at chess, Go, and shogi.
-- **ELO**: a rating system; if your ELO is 1500 and your opponent's is 1300, you should win ~76% of games.
-- **Transformer**: a neural network architecture (the same kind that powers ChatGPT). Good at tokens/sequences.
-- **CNN (Convolutional Neural Network)**: a neural network for grid-shaped data (images, game boards). Sees local patterns.
-- **ResNet**: a CNN that uses "skip connections" so very deep networks can train. The Lux S3 winner used a small one.
-- **GPU**: graphics card, used for training neural networks. RTX 3090 is consumer-tier; A100 is industrial-tier (~$10k each).
-- **Action masking**: explicitly telling the model "you cannot move there, that move is illegal" so it never chooses one.
-- **Test-time augmentation (TTA)**: at inference, run the model multiple times on rotated/flipped versions of the input and average. Reduces variance.
-- **Curriculum learning**: train on easy versions first (small map, dense rewards), then harder (big map, sparse rewards).
-- **Reward shaping**: temporarily adding extra small rewards (e.g. "+0.01 per planet captured") to help RL learn faster, then turning them off.
-- **Hungarian algorithm / linear sum assignment**: a math trick to optimally assign N workers to N tasks all at once.
-- **Dijkstra's algorithm**: shortest-path algorithm. Used by Halite III winner to find best mining route.
+1. **アクションマスキング** — ボットに不正な手を考えさせない (RL 優勝者全員が使用)。
+2. **対称性データ拡張** — 盤面を反転してデータを増やす。orbit-wars は (50, 50) 中心の 4 回対称性を持つので 4× 無料データ。
+3. **テスト時拡張** — 推論時、盤面 + 回転盤面でモデルを実行して予測を平均する。
+4. **カスタム高速シミュレータ** — Lux S3 優勝者は env を Rust で書き直して 10 倍高速化。RL に行くなら必須。
+5. **ターゲットあたり船数制限** — FakePsyho のトリック。艦隊の固まりを防ぐ。
+6. **ステップカウントを入力に** — Hungry Geese のエンドゲーム切替トリック。
 
 ---
 
-## Sources (in case you want to read more)
+## 用語集
 
-The most-similar past comp to orbit-wars: https://recursive.cc/blog/halite-ii-post-mortem.html (Halite II 1st-place writeup, by reCurs3 / Ubisoft Montreal). Mirror at https://medium.com/aescru/halite-ii-strategies-of-a-top-player-88127b3b49e2 if the original is offline.
+- **Heuristic / ルールベース**: プログラマが `if-then-else` 文で動作を手書きしたボット (学習なし)。
+- **Imitation Learning (IL) / Behavioral Cloning (BC)**: 人間や上位ボットの手を、リプレイデータをサンプルとしてニューラルネットに真似させる学習。
+- **Reinforcement Learning (RL)**: ボットが何も知らない状態から始まり、ゲームをプレイし、勝利 (+1) で報酬、敗北 (−1) で罰を受けて少しずつ学ぶ。犬におやつでしつけるのに似ている。
+- **Self-play**: RL ボットが自分自身のコピーと対戦して学習すること。非常に強力だが、管理しないと変な局所戦略に崩壊することも。
+- **PPO (Proximal Policy Optimization)**: 最も人気のある RL アルゴリズム。標準ベースライン。
+- **IMPALA**: 別の RL アルゴリズム。分散学習に効率的。Toad Brigade が使用。
+- **MCTS (Monte Carlo Tree Search)**: 多数の手順候補を先まで模擬して、模擬結果が最良のものを選ぶ計画アルゴリズム。
+- **AlphaZero**: 有名な DeepMind システム。self-play RL と MCTS を組合せ、チェス、囲碁、将棋で人間世界チャンピオンに勝った。
+- **ELO**: レーティングシステム。あなたが 1500 で相手が 1300 なら、約 76% の勝率になるはず。
+- **Transformer**: ニューラルネットアーキテクチャ (ChatGPT を支えるのと同種)。トークン/シーケンスに強い。
+- **CNN (Convolutional Neural Network)**: グリッド型データ (画像、ゲーム盤) 用のニューラルネット。局所パターンを見る。
+- **ResNet**: 「skip connection」を使う CNN。とても深いネットワークでも学習できる。Lux S3 優勝者は小型のものを使った。
+- **GPU**: グラフィックカード。ニューラルネット学習に使う。RTX 3090 はコンシューマ級、A100 は産業級 (1 台約 1 万ドル)。
+- **アクションマスキング**: モデルに「そこには動けない、その手は不正」と明示的に伝え、決して選ばせない。
+- **テスト時拡張 (TTA)**: 推論時、回転/反転した入力でモデルを複数回実行して平均する。分散を減らす。
+- **カリキュラム学習**: 簡単なバージョン (小マップ、密な報酬) から学習し、その後難しい (大マップ、スパース報酬) ものへ。
+- **報酬整形**: RL を速く学ばせるために一時的に追加の小報酬 (例: 「惑星捕獲ごと +0.01」) を加え、後でオフにする。
+- **Hungarian アルゴリズム / 線形和割当**: N ワーカーを N タスクに最適に同時割当する数学トリック。
+- **Dijkstra アルゴリズム**: 最短経路アルゴリズム。Halite III 優勝者がベスト採掘経路探索に使用。
 
-Most-recent (and most informative) comp: https://github.com/IsaiahPressman/kaggle-lux-2024/blob/main/write-up.md (Lux AI Season 3 1st place).
+---
 
-The cautionary tale that hand-written rules can still win: https://github.com/ryandy/Lux-S2-public (Lux AI S2 1st place).
+## 出典 (もっと読みたい人向け)
 
-The full reference list is in the companion file `past-comps.references.json`, and the technical-density version in `past-comps.dense.md`.
+orbit-wars に最も似た過去コンペ: https://recursive.cc/blog/halite-ii-post-mortem.html (Halite II 1 位 writeup、reCurs3 / Ubisoft Montreal)。オリジナルがオフラインなら https://medium.com/aescru/halite-ii-strategies-of-a-top-player-88127b3b49e2 のミラー。
+
+最新かつ最も示唆に富むコンペ: https://github.com/IsaiahPressman/kaggle-lux-2024/blob/main/write-up.md (Lux AI Season 3 1 位)。
+
+手書きルールがまだ勝てるという警句: https://github.com/ryandy/Lux-S2-public (Lux AI S2 1 位)。
+
+完全な参考文献リストは付随ファイル `past-comps.references.json` に、技術的密度の高い版は `past-comps.dense.md` にあります。

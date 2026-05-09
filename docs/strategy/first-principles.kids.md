@@ -1,57 +1,57 @@
-# Orbit Wars — First Principles, Explained Simply
+# Orbit Wars — 第一原理を、やさしく解説
 
-> A high-school-friendly tour of the math hiding inside Orbit Wars. Companion to `first-principles.dense.md`. Source line citations at the end of each section.
-
----
-
-## What's this game, in 30 seconds?
-
-You and 1 (or 3) opponents fight over **planets** that **orbit a sun** in the middle of a 100×100 board. Each player starts with one home planet and 10 ships. You can launch fleets of ships from any planet you own, aimed at any angle. They fly in a straight line at a speed that depends on **how big the fleet is**. They die if they hit the sun. If they hit a planet, combat happens — bigger fleet wins. After 500 turns, whoever has the most ships (counting planets + in-flight) wins.
-
-This document derives the **math** that decides who wins.
+> Orbit Wars に隠れている数学を、高校生でも追えるように説明します。`first-principles.dense.md` の併走資料。各セクションの末尾に出典の行番号を記載。
 
 ---
 
-## Section 1 — Bigger fleets fly faster (logarithm warning)
+## このゲームを 30 秒で説明すると？
 
-### What the engine does
+あなたと 1 人 (または 3 人) の対戦相手が、100×100 の盤面の真ん中で **太陽の周りを回る惑星 (planet)** を奪い合います。各プレイヤーは home planet 1 つと 10 ships でスタート。自分が所有する planet から、好きな角度を狙って ship の艦隊を発射できます。艦隊は直線で飛行し、その速度は **艦隊サイズ** に依存します。太陽に当たると死にます。planet に当たれば戦闘が起こり、艦隊サイズが大きい方が勝ちます。500 turn 経過後、ships の総数 (planet 上 + 飛行中の合計) が一番多い人が勝ちます。
 
-The speed of a fleet of $N$ ships is:
+このドキュメントでは、「誰が勝つか」を決める **数学** を導出します。
+
+---
+
+## セクション 1 — 大きい艦隊ほど速く飛ぶ (対数注意)
+
+### Engine の動き
+
+$N$ ships の艦隊の速度:
 
 $$v(N) = 1 + 5 \cdot \left(\frac{\ln N}{\ln 1000}\right)^{1.5}$$
 
-capped at 6 (when $N \ge 1000$).
+6 で頭打ち ($N \ge 1000$ のとき)。
 
-### What's a logarithm again?
+### 対数 (log) って何だっけ？
 
-$\ln 1000 \approx 6.91$. The natural logarithm $\ln N$ is *the power you raise the number $e \approx 2.718$ to, in order to get $N$*. The important thing for us: **$\ln$ grows slowly**. Doubling $N$ adds only $\ln 2 \approx 0.69$ to $\ln N$.
+$\ln 1000 \approx 6.91$。自然対数 $\ln N$ とは *$e \approx 2.718$ という数を何乗すれば $N$ になるか* を意味します。私たちにとって重要なのは: **$\ln$ はゆっくり伸びる**。$N$ を 2 倍しても $\ln N$ は $\ln 2 \approx 0.69$ しか増えません。
 
-### What this means in numbers
+### 数値で見るとどうなる？
 
-| Fleet size | Speed | Time to cross 50 units |
+| 艦隊サイズ | 速度 | 50 単位を渡る時間 |
 |---:|---:|---:|
 | 1 ship | 1.00 | 50 turns |
 | 10 ships | 1.96 | 25.5 turns |
 | 100 ships | 3.72 | 13.4 turns |
 | 1000 ships | 6.00 | 8.3 turns |
-| 5000 ships | 6.00 (capped) | 8.3 turns |
+| 5000 ships | 6.00 (頭打ち) | 8.3 turns |
 
-So a 1000-ship fleet only travels **6× faster** than a single ship, even though it's 1000× bigger. After 1000 ships, more ships add **zero** speed.
+つまり 1000 ship 艦隊は 1 隻艦隊より **6 倍しか速く** ない、サイズは 1000 倍なのに。1000 ships を超えると、追加 ships は速度に **ゼロ** しか寄与しません。
 
-### Should I split my fleet into two halves?
+### 艦隊を 2 つに分けるべき？
 
-**No.** A fleet of 100 takes 13.4 turns to cross 50 units. Two fleets of 50 each take 16.0 turns. Because the speed function is concave (gains shrink), one big fleet is *always* faster than two halves going to the same target.
+**いいえ。** 100 ship 艦隊は 50 単位を渡るのに 13.4 turn かかります。50 ship 艦隊 2 つだと合計 16.0 turn。速度関数は凹 (利得が小さくなる) なので、同じ標的に向かうなら 1 つの大艦隊が *常に* 半分 2 つより速いのです。
 
-Reasons to split anyway:
-- You want to attack **two different planets** at the same time.
-- You're decoying or hedging.
+それでも分割すべき理由:
+- **異なる 2 つの planet** を同時に攻撃したい。
+- デコイやヘッジを行いたい。
 
-### ASCII picture
+### ASCII の絵
 
 ```
-Speed vs fleet size (clamped at 6):
+艦隊サイズ vs 速度 (6 で頭打ち):
 
-6 |                                  _____ _____   <- ceiling at N=1000
+6 |                                  _____ _____   <- N=1000 で天井
   |                            ___---
 4 |                      __---
   |                __---
@@ -61,190 +61,190 @@ Speed vs fleet size (clamped at 6):
   1  10   50  100  250  500  1k  2k
 ```
 
-### Why this matters for orbit-wars
+### Orbit Wars でなぜこれが重要か
 
-You want to **mass up** before launching. Sending 5 separate fleets of 20 to one target is much slower than sending one fleet of 100. But going past 1000 ships is **wasted speed** — the only benefit is more punch.
+発射前に **集中する** のがよいのです。20 ships 艦隊 5 つを 1 つの標的に送るのは、100 ships 艦隊 1 つを送るよりずっと遅い。ただし 1000 ships を超えると **速度の無駄** — 利点は打撃力だけになります。
 
-**Source:** `orbit_wars.py:577-578`.
+**出典:** `orbit_wars.py:577-578`。
 
 ---
 
-## Section 2 — Hitting a moving target (lead-shot)
+## セクション 2 — 動く標的に当てる (先読み射撃)
 
-### Imagine throwing a snowball at a friend running
+### 走る友達に雪玉を投げるイメージ
 
-Your friend is running across the field at constant speed. If you aim *directly at them*, your snowball arrives where they *were*, not where they *are*. You have to aim ahead of them. That's called **leading the target**. Orbit Wars is no different — most planets are spinning around the sun, so you have to aim where they'll be when your fleet arrives.
+友達が一定速度でフィールドを走っています。*友達のいる位置を直接* 狙うと、雪玉は友達が *いた* 位置に着いて、*今いる* 位置には届きません。友達の前方を狙う必要がある — これを **標的をリードする (lead)** と呼びます。Orbit Wars でも同じ: ほとんどの planet は太陽の周りを回っているので、艦隊が到着するときに planet がいる位置を狙う必要があります。
 
-### What's "angular velocity"?
+### 「角速度」って何？
 
-Planets sweep around the sun on a circle. Each turn the planet moves by a small angle, $\omega$ radians. In Orbit Wars $\omega$ is randomly chosen between 0.025 and 0.05 (radians per turn). For comparison, a full circle is $2\pi \approx 6.28$ radians, so a planet takes between $\frac{6.28}{0.05} \approx 126$ and $\frac{6.28}{0.025} \approx 251$ turns to complete an orbit. Episode is 500 turns, so a planet does **2–4 full orbits** during a game.
+planet は太陽の周りを円軌道で動きます。1 turn ごとに小さな角度 $\omega$ ラジアンだけ動く。Orbit Wars では $\omega$ は 0.025 から 0.05 (turn あたりラジアン) の範囲でランダムに選ばれます。比較として、円一周は $2\pi \approx 6.28$ ラジアンなので、planet は 1 周に $\frac{6.28}{0.05} \approx 126$ から $\frac{6.28}{0.025} \approx 251$ turn かかります。エピソードは 500 turn なので、planet は 1 ゲーム中に **2–4 周** することになります。
 
-The planet's position at time $t$ is:
+時刻 $t$ における planet の位置:
 
 $$x(t) = 50 + r \cos(\theta_0 + \omega\,t), \quad y(t) = 50 + r \sin(\theta_0 + \omega\,t)$$
 
-where $r$ is its distance from the sun and $\theta_0$ is its starting angle.
+ここで $r$ は太陽からの距離、$\theta_0$ は初期角度。
 
-### The intercept equation
+### 迎撃方程式
 
-Your fleet flies at speed $v$ in a straight line. To hit the target, you need to find the time $t^*$ when:
+艦隊は速度 $v$ で直線飛行する。標的に当てるには、以下を満たす時刻 $t^*$ を見つける:
 
-> distance from your launch point to the planet's-position-at-time-$t^*$ = $v \times t^*$
+> 発射点から「時刻 $t^*$ における planet の位置」までの距離 = $v \times t^*$
 
-This is one equation with one unknown ($t^*$); solve it numerically (bisection works great).
+これは未知数 1 つ ($t^*$) に対して方程式 1 つ。数値的に解けばよい (二分法でうまくいく)。
 
-### A worked example
+### 例題
 
-You're at coordinates $(75, 25)$. Your target orbits at radius $r = 30$ around the sun (which is at the center, $(50, 50)$). The planet is at angle 0 right now (so it's at $(80, 50)$). It rotates at $\omega = 0.04$ radians/turn. You're launching 50 ships, which travel at $v = 3.13$ units/turn.
+あなたは座標 $(75, 25)$ にいます。標的は太陽 (中心 $(50, 50)$) の周りを半径 $r = 30$ で公転中。今、planet の角度は 0 (つまり $(80, 50)$ にいる)。$\omega = 0.04$ ラジアン/turn で回転。あなたは 50 ships を発射、速度 $v = 3.13$ 単位/turn。
 
-Solving the intercept equation gives:
+迎撃方程式を解くと:
 
-- intercept time **$t^* = 12.63$ turns**
-- intercept location **$(76.25, 64.52)$**
-- fire angle (from your home, where to point) **$88.18°$ from the +X axis**
+- 迎撃時刻 **$t^* = 12.63$ turns**
+- 迎撃地点 **$(76.25, 64.52)$**
+- 発射角 (home から、どこを向くか) **+X 軸から $88.18°$**
 
-If you naively aimed at the target's *current* position (i.e. $(80, 50)$), you'd aim at **$84.81°$**. The difference (**3.4°**) seems tiny but at distance 40 means you miss by ≈ 2.4 units — bigger than most planet radii. **You will miss without leading.**
+もし naive に標的の *現在* 位置 (つまり $(80, 50)$) を狙うと、$84.81°$ になります。差 (**3.4°**) は小さく見えますが、距離 40 ではおよそ 2.4 単位ずれて、ほとんどの planet 半径より大きい miss になります。**先読みしないと当たりません。**
 
-### The forbidden cone (don't fly into the sun!)
+### Forbidden cone (太陽に飛び込むな！)
 
-Your fleet dies if its path crosses within 10 units of the sun. From any launch point, this carves out a "forbidden cone" of headings.
+艦隊は経路が太陽の 10 単位以内を通ると死にます。任意の発射点から見て、これにより方位の中に「forbidden cone」が切り取られます。
 
-**Picture from $(75, 25)$:**
+**$(75, 25)$ からの図:**
 
 ```
               forbidden
                ___|___
               /   |   \
-   (75,25)   /    |   \      <- 33° wide cone you can NEVER fire into
+   (75,25)   /    |   \      <- 絶対に発射できない 33° 幅の cone
       *->---     SUN     ---<- (50,50)
               \         /
                \_______/
 ```
 
-The half-angle of the cone is $\arcsin(\frac{10}{d})$ where $d$ is your distance to the sun. From $(75, 25)$, $d = 35.36$, so the cone half-angle is **$16.43°$**, total cone width **$32.86°$**.
+cone の半角は $\arcsin(\frac{10}{d})$、ここで $d$ は太陽までの距離。$(75, 25)$ から見ると $d = 35.36$ なので、cone の半角は **$16.43°$**、cone の総幅 **$32.86°$**。
 
-### Why this matters for orbit-wars
+### Orbit Wars でなぜこれが重要か
 
-1. Almost every planet is moving — naive aiming misses most of them.
-2. The forbidden cone forbids ~9% of all headings from every Q1 launcher pointing toward the opposite corner. You **must** route around the sun, not through it.
+1. ほぼ全ての planet が動いている — naive な狙いではほとんど外す。
+2. forbidden cone は、Q1 発射元からの全方位のうち反対のコーナーに向く ~9% を禁止する。**太陽を通り抜けず、迂回せねばならない**。
 
-**Sources:** `orbit_wars.py:537-546` (planet motion), `:493-494` (fleet launch), `:607-609` (sun kill check).
-
----
-
-## Section 3 — Comets
-
-### What's a comet?
-
-Every 100 turns (specifically at game-step 50, 150, 250, 350, 450), the universe spawns 4 comets — one per quadrant of the board, all symmetric to each other. A comet is a temporary planet that **moves** along an elliptical path (not a circle), at a fixed speed of 4 units per turn. Each comet has between 5 and 40 turns of "visible life" — appearing on one side of the board, sweeping past the sun, exiting the other side.
-
-If you successfully attack a comet, **you own it** until it expires. While owned, it produces 1 ship per turn.
-
-### Can I predict comet arrivals before they appear?
-
-The comet's trajectory is determined by a hidden random number generator that uses the **episode seed** as input. The engine **deliberately erases the seed from anything you can see** (`orbit_wars.py:359-363`). So **no**, you cannot pre-simulate future comets.
-
-But — once a comet spawns, **its entire future path is in your observation**. So at the moment it appears, you can compute: when will it be closest to my home? How many ships does it have? Is it worth attacking?
-
-### How tough are comets?
-
-The defending fleet on a fresh comet is `min(rng4)` of `randint(1, 99)` — i.e. the minimum of 4 random integers between 1 and 99. The math gives:
-
-- median ≈ 19 ships
-- 90th percentile ≈ 53 ships
-
-So **most comets are weak** — a 25-ship strike force defeats half of them; a 60-ship force defeats nearly all.
-
-### Why this matters for orbit-wars
-
-Comets are **cheap power-ups** if you can intercept them while they're close to home. Keep a 30–60 ship reserve fleet at home; whenever a comet appears in your quadrant, lead-shot it with that reserve. It's a "free" planet (1 ship/turn) for up to 40 turns.
-
-But: don't chase comets across the map — they expire and you'll be wasting fleet on a planet that vanishes. Also, the comet *itself* moves, so you have to lead-shot it like a planet (Section 2).
-
-**Sources:** `orbit_wars.py:27, :191-331` (comet generation), `:438-447` (seed scrub), `:451-456` (comet ship count).
+**出典:** `orbit_wars.py:537-546` (planet 移動)、`:493-494` (艦隊発射)、`:607-609` (太陽撃沈チェック)。
 
 ---
 
-## Section 4 — Combat math (the tie-trap)
+## セクション 3 — Comet (彗星)
 
-### How combat resolves
+### Comet って何？
 
-Multiple fleets can arrive at the same planet on the same turn. The engine resolves combat in 3 steps:
+100 turn ごと (具体的には game-step 50, 150, 250, 350, 450)、宇宙が 4 つの comet を生み出す — 盤面の各クアドラントに 1 つずつ、互いに対称。Comet は楕円軌道 (円ではない) を辿る一時的な planet で、固定速度 4 単位/turn で動く。各 comet は 5 から 40 turn の「可視寿命」を持ち、盤面の片側に現れて太陽近くを通過し、反対側から去る。
 
-1. **Sum ships per attacker** (different fleets from the same player merge).
-2. **Largest vs second-largest fight first**: survivor = largest − second-largest, owned by the largest. **Tie = both annihilate** (survivor = 0).
-3. **Survivor vs garrison**: the planet's existing ships defend. If survivor > garrison → planet flips, new garrison = survivor − garrison. Otherwise → garrison reduces by survivor.
+comet を首尾よく攻撃すると、期限切れまで **あなたが所有する**。所有中、turn あたり 1 ship を生産する。
 
-### Why ties are scary
+### Comet が現れる前に予測できる？
 
-If two enemies attack your planet with **exactly equal** force, they wipe each other out *before* touching your garrison. That's amazing for you. **But** if you and your ally try to coordinate a 50-50 attack on a defender, you both get wiped out and the defender keeps the planet. Coordinating attacks **with equal forces is suicide**.
+Comet の軌跡は、**エピソード seed** を入力にする隠された乱数生成器で決まる。Engine は seed を **観測できる場所から意図的に消去する** (`orbit_wars.py:359-363`)。よって **未来の comet を事前シミュレートはできない**。
 
-### Worked outcomes
+しかし — comet が spawn したらすぐ、**その完全な未来 path が observation に入る**。なので出現の瞬間に計算できる: home に最接近するのはいつか？ ships 何隻持っているか？ 攻撃する価値はあるか？
 
-Garrison $G = 80$, varied attackers $T$ (top) and $S$ (second):
+### Comet はどのくらい強い？
 
-| $G$ | $T$ | $S$ | What happens | New garrison |
+新しい comet の防御艦隊は `min(rng4)` of `randint(1, 99)` — つまり 1〜99 のランダムな整数 4 つの最小値。計算すると:
+
+- 中央値 ≈ 19 ships
+- 90 パーセンタイル ≈ 53 ships
+
+なので **ほとんどの comet は弱い** — 25 ships ストライクで半分は撃破でき、60 ships 部隊ならほぼ全てを撃破できる。
+
+### Orbit Wars でなぜこれが重要か
+
+comet は home 近くで迎撃できれば **安価なパワーアップ**。30〜60 ships の予備艦隊を home に置いておき、自分のクアドラントに comet が現れたらその予備で先読み射撃する。最大 40 turn の「無料」planet (1 ship/turn) になる。
+
+ただし: 盤面を越えて comet を追うな — 期限切れになって、消える planet に艦隊を浪費するだけ。また comet *自身* が動くので、planet と同様に先読み射撃する必要がある (セクション 2)。
+
+**出典:** `orbit_wars.py:27, :191-331` (comet 生成)、`:438-447` (seed scrub)、`:451-456` (comet ship 数)。
+
+---
+
+## セクション 4 — 戦闘の数学 (同点トラップ)
+
+### 戦闘はどう決着するか
+
+複数の艦隊が同じ turn に同じ planet に到着できる。Engine は 3 ステップで戦闘を解決する:
+
+1. **攻撃者ごとに合計** (同じプレイヤーの異なる艦隊はマージされる)。
+2. **最大 vs 二位が先に戦う**: survivor = 最大 - 二位、最大の所有者が勝つ。**同点 = 両方殲滅** (survivor = 0)。
+3. **survivor vs 駐留**: planet の既存 ships が防御。survivor > 駐留 なら → planet が flip、新駐留 = survivor − 駐留。それ以外なら → 駐留が survivor 分減る。
+
+### 同点が怖い理由
+
+2 人の敵が **完全に等しい** 戦力でこちらの planet を攻撃すると、こちらの駐留に触れる *前に* 互いに殲滅し合う。それはこちらにとって素晴らしい。**しかし** あなたとアライが防御者に対して 50-50 攻撃を協調させると、両方とも壊滅して防御者は planet を保持する。**等しい戦力の協調攻撃は自殺**。
+
+### 結果例
+
+駐留 $G = 80$ で攻撃者 $T$ (top) と $S$ (二位) を変えた場合:
+
+| $G$ | $T$ | $S$ | 何が起こるか | 新駐留 |
 |---:|---:|---:|---|---:|
-| 80 | 100 | 0 | flip — top wins | 20 |
-| 80 | 100 | 50 | garrison holds (survivor 50 < 80) | 30 |
-| 80 | 50 | 50 | tie wipes attackers; garrison untouched | 80 |
-| 80 | 60 | 40 | garrison holds (survivor 20) | 60 |
-| 80 | 80 | 80 | tie wipes attackers | 80 |
+| 80 | 100 | 0 | flip — top が勝つ | 20 |
+| 80 | 100 | 50 | 駐留 holds (survivor 50 < 80) | 30 |
+| 80 | 50 | 50 | 同点で攻撃者全滅; 駐留無傷 | 80 |
+| 80 | 60 | 40 | 駐留 holds (survivor 20) | 60 |
+| 80 | 80 | 80 | 同点で攻撃者全滅 | 80 |
 | 80 | 200 | 100 | flip (survivor 100 > 80) | 20 |
 
-### How to flip a planet cheaply
+### planet を安く flip するには
 
-If garrison $G$ is alone (no second attacker), you need $T > G$. Cheapest flip = $G + 1$ ships.
+駐留 $G$ が単独 (二位攻撃者なし) なら、$T > G$ が必要。最安 flip = $G + 1$ ships。
 
-If a rival is also attacking with $S$ ships, you need $T - S > G$, i.e. $T > G + S$. **An ally is your enemy** if you both target the same planet — every ship the ally sends is a ship you must add.
+ライバルも $S$ ships で攻撃しているなら、$T - S > G$、つまり $T > G + S$ が必要。**アライは同じ planet を狙う限り敵**。アライが送る各 ship は、こちらが追加する必要のある ship。
 
-### Why this matters for orbit-wars
+### Orbit Wars でなぜこれが重要か
 
-1. **Don't pile on a planet your ally is also attacking** — it makes the cost go up, not down. Designate one puncher.
-2. **Tie defense is real**: if you can engineer two enemies to send equal forces to your planet, your garrison spends 0.
-3. **Cheapest planet steal** = $G + 1$ ships, where $G$ is the garrison. That's your conversion price.
+1. **アライも攻撃中の planet に乗っかるな** — コストが減らずに増える。指定されたパンチャーを 1 人立てよ。
+2. **同点防御は本物**: 2 人の敵が等しい戦力で自分の planet に来るように仕向けられれば、駐留コスト 0。
+3. **最安 planet 略奪** = $G + 1$ ships、$G$ は駐留。それがあなたの変換価格。
 
-**Sources:** `orbit_wars.py:636-674` (combat resolution), `:659-661` (tie rule).
+**出典:** `orbit_wars.py:636-674` (戦闘解決)、`:659-661` (同点ルール)。
 
 ---
 
-## Section 5 — The opening (4-fold symmetry)
+## セクション 5 — オープニング (4 重対称)
 
-### Where do homes live?
+### Home はどこに置かれる？
 
-Every game, planets are placed in symmetric groups of 4 (one per quadrant of the board). One group is randomly chosen as the **home group**. In a 2-player game, you get the Q1 (upper-right octant) copy and your opponent gets the Q3 (lower-left octant) copy. In 4-player, all four players each get one copy.
+毎ゲーム、planet は 4 つずつの対称グループ (盤面の各クアドラントに 1 つ) に配置される。1 グループがランダムに **home group** として選ばれる。2 プレイヤーゲームでは、あなたが Q1 (右上のオクタント) コピーを、対戦相手が Q3 (左下のオクタント) コピーを得る。4 プレイヤーでは、4 人それぞれが 1 コピーを得る。
 
-### How far apart are home planets in 2-player?
+### 2 プレイヤーで home planet 同士はどれくらい離れている？
 
-Home positions are mirror images: if you're at $(p_2, p_3)$, your enemy is at $(100 - p_2, 100 - p_3)$. Distance:
+Home 位置は鏡像: あなたが $(p_2, p_3)$ にいるなら、敵は $(100 - p_2, 100 - p_3)$ にいる。距離:
 
 $$d = \sqrt{(100 - 2p_2)^2 + (100 - 2p_3)^2}$$
 
-Sampling 200,000 random episodes (matching the engine's home-placement randomness):
+200,000 のランダムエピソードをサンプリング (engine の home 配置ランダム性に合わせて):
 
-- minimum: 94.78 units
-- median: 100.48 units
-- mean: 103.28 units
-- maximum: 138.10 units
+- 最小: 94.78 単位
+- 中央値: 100.48 単位
+- 平均: 103.28 単位
+- 最大: 138.10 単位
 
-So **expect about 100 units between you and your enemy** — basically the diagonal of the board.
+なので **あなたと敵の間はおよそ 100 単位** — 基本的に盤面の対角線。
 
-### How long does a max-fleet take to cross?
+### 最大艦隊で渡るのにどれくらいかかる？
 
-At $v=6$ (1000+ ships), 100 units = 16.7 turns. With a 500-turn episode, that's **3.3% of the game** to cross the map at top speed. But you start with **10 ships** — you can't even reach the enemy in any meaningful way at game start.
+$v=6$ (1000+ ships) で 100 単位 = 16.7 turn。500 turn のエピソードなら **ゲームの 3.3%** で盤面横断 (最高速で)。ただしあなたは **10 ships** でスタート — ゲーム開始時には敵に意味のある形で到達できない。
 
-### How big is the action space?
+### 行動空間はどのくらい大きい？
 
-Each turn you can launch 0+ fleets. Each launch needs:
-- which of your planets to launch from (you start with 1, may grow to 10)
-- what angle (continuous, but discretize to e.g. 36 buckets of 10°)
-- how many ships (between 1 and your garrison)
+各 turn に 0 個以上の艦隊を発射できる。各発射に必要なもの:
+- 自分のどの planet から発射するか (最初は 1 つ、最大 10 まで増える)
+- 角度 (連続だが、例えば 10° の 36 バケットに離散化)
+- ships 数 (1 から駐留まで)
 
-A typical mid-game state has 8 planets owned by you, ~30 ships each. Per turn there are roughly $36 \times 30 = 1080$ launch options per planet. Subsetting which planets to launch from gives $\approx 10^{24}$ raw moves per turn.
+典型的なミッドゲーム状態は 8 個の planet を所有、各 ~30 ships。turn あたりおよそ $36 \times 30 = 1080$ の発射選択肢が planet ごと。発射元 planet のサブセット選択を加えると、生の moves で turn あたり $\approx 10^{24}$ になる。
 
-That's **way too big** to brute-force. Every reasonable bot prunes.
+これは **ブルートフォースには大きすぎる**。まともな bot は枝刈りする。
 
-### Beam search opener (pseudo-code)
+### ビーム探索 opener (擬似コード)
 
 ```text
 state = current observation
@@ -259,150 +259,150 @@ for turn in 1..10:
 output = best path in beam
 ```
 
-What's pruned?
-- only launch toward actual planets (8 candidate angles, not 36)
-- only $\{$ half_garrison, all_garrison $\}$ for ship counts
-- skip headings inside the forbidden cone (Section 2)
-- skip headings that don't intercept any moving planet within reach
+何を枝刈りする？
+- 実際の planet に向かう発射のみ (角度 8 候補、36 ではない)
+- ships 数は $\{$ 駐留の半分, 駐留全部 $\}$ のみ
+- forbidden cone 内の方位はスキップ (セクション 2)
+- 範囲内の動く planet を迎撃しない方位はスキップ
 
-That cuts the per-turn move space to ≈ 72, manageable for a beam.
+これで turn あたりの move 空間が ≈ 72 まで下がり、ビームで扱える。
 
-### Why this matters for orbit-wars
+### Orbit Wars でなぜこれが重要か
 
-1. The **opening 50 turns** are mostly travel. A fast scout (10 ships, $v=2$) reaches a nearby planet (distance ~30) in 15 turns; a 100-ship punisher reaches it in 8.
-2. You **cannot** simply attack the enemy home from your home on turn 1 — you don't have the ships. Build up via **local prod=3+ planets first** (Section 6).
-3. Search-based bots (beam search, MCTS) need pruning to be tractable. Hand-crafted heuristics that pick "closest unowned high-prod target" beat naive search at low compute.
+1. **オープニング 50 turn** はほぼ移動。高速偵察 (10 ships, $v=2$) は近くの planet (距離 ~30) に 15 turn で到達; 100 ships の制裁部隊なら 8 turn。
+2. **turn 1 で home から敵 home を直接攻撃できない** — ships が足りない。先に **ローカルの prod=3+ planet** を経由してビルドアップする (セクション 6)。
+3. 探索ベースの bot (ビーム探索、MCTS) は枝刈りなしでは扱えない。低 compute では「最も近い未所有の高 prod 標的」を選ぶ手作りヒューリスティックが naive 探索を打ち負かす。
 
-**Sources:** `orbit_wars.py:67-188` (planet placement), `:378-391` (home assignment), `orbit_wars.json:80-93` (action shape).
-
----
-
-## Section 6 — When is a planet worth attacking?
-
-### Planet anatomy
-
-Each planet has:
-- **production**: 1 to 5 ships per turn (uniform random)
-- **radius**: $1 + \ln(\text{prod})$ — bigger planets = larger targets, easier to hit (prod 5 has radius 2.6)
-- **garrison**: defending ships. Phase-1 planets have garrison ~ min of two `randint(5, 99)` (median 36). Phase-2 fill planets have garrison `randint(5, 30)` (mean 17.5).
-
-### How long until I get my ships back?
-
-If you spend $S$ ships to flip a planet, the planet then produces `prod` ships per turn. **Payback time** = $S / \text{prod}$ turns.
-
-### Total break-even table (capture cost + payback) at distance 50
-
-Assume cheapest flip ($S = G + 1$ ships):
-
-| Garrison | Ships sent | Travel time | Payback (prod=1) | Total break-even |
-|---:|---:|---:|---:|---:|
-| 5 | 6 | 31 turns | 6 turns | 37 turns |
-| 30 | 31 | 19 turns | 31 turns | 50 turns |
-| 50 | 51 | 16 turns | 51 turns | 67 turns |
-| 80 | 81 | 14 turns | 81 turns | 95 turns |
-
-For prod=3 instead:
-
-| Garrison | Ships sent | Travel time | Payback (prod=3) | Total break-even |
-|---:|---:|---:|---:|---:|
-| 5 | 6 | 31 turns | 2 turns | 33 turns |
-| 30 | 31 | 19 turns | 10 turns | 29 turns |
-| 50 | 51 | 16 turns | 17 turns | 33 turns |
-| 80 | 81 | 14 turns | 27 turns | 41 turns |
-
-For prod=5:
-
-| Garrison | Ships sent | Travel time | Payback (prod=5) | Total break-even |
-|---:|---:|---:|---:|---:|
-| 5 | 6 | 31 turns | 1.2 turns | 32 turns |
-| 30 | 31 | 19 turns | 6.2 turns | 25 turns |
-| 50 | 51 | 16 turns | 10.2 turns | 26 turns |
-| 80 | 81 | 14 turns | 16.2 turns | 30 turns |
-
-### What the table says
-
-1. **Prod=1 planets at distance** are barely worth it. Prod=1 + heavy garrison breaks even in 95 turns — nearly 20% of the game.
-2. **Prod=3+ planets always win** the cost-benefit fight. Even a heavy-garrison prod=5 planet pays back in 30 turns.
-3. **Cheap, low-garrison** planets are good as **stepping stones** — capture, then re-launch from there.
-4. **Comets**: prod=1, garrison median 19, but they expire in 5–40 turns. Only attack if already in range; they almost never finish their own break-even.
-
-### Why this matters for orbit-wars
-
-Pick targets in this order:
-1. Prod=5 with low garrison
-2. Prod=4–5 with high garrison if reachable in $\le 10$ turns
-3. Prod=3 with low garrison
-4. Comets in your quadrant
-5. Prod=1–2 only as stepping stones
-
-Avoid prod=1 distant planets unless they're a launch waypoint.
-
-**Sources:** `orbit_wars.py:80-81, :133-134` (production sampling), `:512-514` (production tick), `:667-674` (combat).
+**出典:** `orbit_wars.py:67-188` (planet 配置)、`:378-391` (home 割り当て)、`orbit_wars.json:80-93` (action shape)。
 
 ---
 
-## Section 7 — Sneaky engine details
+## セクション 6 — Planet を攻撃する価値があるのはいつ？
 
-### 7.1 Action validation: silently dropped moves
+### Planet の解剖学
 
-If you submit an invalid move, the engine **silently** ignores it. The list of things that get dropped:
+各 planet は以下を持つ:
+- **生産**: turn あたり 1〜5 ships (一様ランダム)
+- **半径**: $1 + \ln(\text{prod})$ — 大きな planet = 大きな標的、当てやすい (prod 5 は半径 2.6)
+- **駐留**: 防御 ships。Phase-1 の planet は駐留 ~ 2 つの `randint(5, 99)` の min (中央値 36)。Phase-2 の埋め planet は駐留 `randint(5, 30)` (平均 17.5)。
 
-- Move not exactly length 3 → dropped
-- Source planet ID doesn't exist → dropped
-- Source planet isn't yours → dropped
-- Number of ships ≤ 0 → dropped
-- Number of ships > garrison → **the entire move is dropped** (you'd think you'd send all you have; you don't, you send nothing)
+### ships を取り戻すまでどのくらい？
 
-**Lesson**: always check the planet's current `ships` value and request `min(intent, ships)`.
+planet を flip するのに $S$ ships を費やすと、planet は turn あたり `prod` ships を生産する。**Payback time** = $S / \text{prod}$ turn。
 
-### 7.2 Multiple launches from the same planet on one turn
+### 距離 50 での総損益分岐表 (捕獲コスト + payback)
 
-You can include the same source planet ID twice in your action list. The engine processes them sequentially, deducting ships after each. So `[[id=5, angle=0, ships=20], [id=5, angle=π, ships=20]]` from a planet with 50 ships fires **40 ships in two directions**, leaving 10. With 30 ships, the second launch is dropped (10 < 20).
+最安 flip ($S = G + 1$ ships) を仮定:
 
-### 7.3 Termination tick
+| 駐留 | 送る ships | 移動時間 | Payback (prod=1) | 総損益分岐 |
+|---:|---:|---:|---:|---:|
+| 5 | 6 | 31 turn | 6 turn | 37 turn |
+| 30 | 31 | 19 turn | 31 turn | 50 turn |
+| 50 | 51 | 16 turn | 51 turn | 67 turn |
+| 80 | 81 | 14 turn | 81 turn | 95 turn |
 
-The episode ends when `step >= 498` (`orbit_wars.py:686`). Tick 498's actions, production, and combat all execute, *then* scoring happens. So the **last opportunity to launch is around step 497**. Anything launched on the very last tick still counts toward scoring (in-flight ships are scored at line `:707-708`).
+prod=3 の場合:
 
-### 7.4 Squeezing between planets
+| 駐留 | 送る ships | 移動時間 | Payback (prod=3) | 総損益分岐 |
+|---:|---:|---:|---:|---:|
+| 5 | 6 | 31 turn | 2 turn | 33 turn |
+| 30 | 31 | 19 turn | 10 turn | 29 turn |
+| 50 | 51 | 16 turn | 17 turn | 33 turn |
+| 80 | 81 | 14 turn | 27 turn | 41 turn |
 
-`PLANET_CLEARANCE = 7` is **only checked at planet generation time**. Once the game is running, fleets can fly through any gap that doesn't pass within `r_p` of a planet's center. So gaps between planets are at minimum 7 wide, and your fleets can definitely thread between two adjacent planets.
+prod=5 の場合:
 
-### 7.5 Sun-graze threshold
+| 駐留 | 送る ships | 移動時間 | Payback (prod=5) | 総損益分岐 |
+|---:|---:|---:|---:|---:|
+| 5 | 6 | 31 turn | 1.2 turn | 32 turn |
+| 30 | 31 | 19 turn | 6.2 turn | 25 turn |
+| 50 | 51 | 16 turn | 10.2 turn | 26 turn |
+| 80 | 81 | 14 turn | 16.2 turn | 30 turn |
 
-Sun-kill is `point_to_segment_distance < 10.0` (strict less-than). A path that closes to *exactly* 10.0 survives. With float drift, plan ≥ 10.5 to be safe.
+### 表が示すこと
 
-### 7.6 Score draws
+1. **遠方の prod=1 planet** はほぼ価値なし。Prod=1 + 重駐留は 95 turn で損益分岐 — ゲームの約 20%。
+2. **Prod=3+ planet は常にコスパ勝負に勝つ**。重駐留の prod=5 planet でも 30 turn で payback。
+3. **安い、低駐留 planet** は **踏み石** として良い — 捕獲してそこから再発射。
+4. **Comet**: prod=1、駐留中央値 19、ただし 5〜40 turn で期限切れ。既に範囲内の場合のみ攻撃; ほぼ自分の損益分岐に届かない。
 
-If everyone has 0 ships at the end (very rare — you'd all need to be wiped on the same tick), **everyone loses**. Otherwise, all players tied for max ships **all get +1**.
+### Orbit Wars でなぜこれが重要か
 
-**Sources:** `orbit_wars.py:477-509` (action validation), `:684-715` (termination), `:113, :168` (PLANET_CLEARANCE), `:607-609` (sun kill).
+標的選択順序:
+1. 低駐留の prod=5
+2. $\le 10$ turn で到達可能なら、高駐留の prod=4–5
+3. 低駐留の prod=3
+4. 自分のクアドラントの comet
+5. 踏み石としてのみ prod=1–2
+
+prod=1 の遠方 planet は発射経由地でない限り避ける。
+
+**出典:** `orbit_wars.py:80-81, :133-134` (生産サンプリング)、`:512-514` (生産 tick)、`:667-674` (戦闘)。
 
 ---
 
-## TL;DR cheat sheet
+## セクション 7 — Engine の細かい仕様
 
-| Question | Answer |
+### 7.1 Action 検証: silently drop される moves
+
+無効な move を提出すると、engine は **silently** に無視する。drop されるリスト:
+
+- Move の長さがちょうど 3 でない → drop
+- ソース planet ID が存在しない → drop
+- ソース planet が自分のものでない → drop
+- ships ≤ 0 → drop
+- ships > 駐留 → **move 全体が drop** (「持っている全部を送る」と思うかもしれないが、実際には何も送られない)
+
+**教訓**: 常に planet の現在の `ships` 値をチェックして、`min(intent, ships)` をリクエストせよ。
+
+### 7.2 1 turn に同じ planet から複数発射
+
+action リスト内で同じソース planet ID を 2 回含めることができる。Engine は逐次処理し、各 move 後に ships を減算する。よって 50 ships の planet からの `[[id=5, angle=0, ships=20], [id=5, angle=π, ships=20]]` は **40 ships を 2 方向に発射**、10 残る。30 ships の場合、2 つ目の発射は drop (10 < 20)。
+
+### 7.3 終了 tick
+
+エピソードは `step >= 498` で終わる (`orbit_wars.py:686`)。Tick 498 のアクション、生産、戦闘は全部実行され、*その後* スコア計算が起こる。よって **発射の最後の機会は step 497 あたり**。最終 tick で発射されたものでもスコアにカウントされる (飛行中 ships は `:707-708` でスコア計算される)。
+
+### 7.4 Planet 間の通り抜け
+
+`PLANET_CLEARANCE = 7` は **planet 生成時のみチェックされる**。ゲーム実行中、艦隊は planet 中心から `r_p` 以内を通らないギャップなら飛行できる。なので planet 間のギャップは最低 7 単位幅で、艦隊は隣接する 2 つの planet の間を確実にすり抜けられる。
+
+### 7.5 太陽かすめ閾値
+
+太陽撃沈は `point_to_segment_distance < 10.0` (厳密な less-than)。*ちょうど* 10.0 で閉じるパスは生存する。Float ドリフトを考えて、安全のために ≥ 10.5 を計画せよ。
+
+### 7.6 引き分けの扱い
+
+最後に全員が 0 ships ならば (非常にまれ — 全員同じ tick で wipe される必要がある)、**全員負け**。それ以外は最大 ships でタイの全プレイヤーが **全員 +1**。
+
+**出典:** `orbit_wars.py:477-509` (action 検証)、`:684-715` (終了)、`:113, :168` (PLANET_CLEARANCE)、`:607-609` (太陽撃沈)。
+
+---
+
+## TL;DR チートシート
+
+| 質問 | 答え |
 |---|---|
-| Best fleet size for speed? | 1000+ (saturates speed at 6) |
-| Should I split a fleet? | No, never (for speed reasons) |
-| How far is the enemy home? | About 100 units (median) |
-| When to lead-shot? | Always for moving (orbiting) targets |
-| Cheapest flip cost? | Garrison + 1 ships |
-| What ties do? | Wipe out the attackers, save garrison |
-| Comet predictability? | Future paths visible the moment they spawn (no earlier) |
-| Best ROI prod tier? | 3 or higher |
-| Sun-kill rule? | Path within 10 units of (50,50) → fleet dies |
+| 速度のベスト艦隊サイズ？ | 1000+ (速度 6 で飽和) |
+| 艦隊を分割すべき？ | いいえ、絶対に (速度の理由なら) |
+| 敵 home までの距離は？ | 約 100 単位 (中央値) |
+| 先読み射撃のタイミングは？ | 動く (公転する) 標的には常に |
+| 最安 flip コスト？ | 駐留 + 1 ships |
+| 同点で何が起こる？ | 攻撃者を全滅させ、駐留を救う |
+| Comet の予測可能性？ | spawn の瞬間に未来 path が見える (それより前は不可) |
+| 最良 ROI の prod 階層？ | 3 以上 |
+| 太陽撃沈ルール？ | (50,50) から 10 単位以内のパス → 艦隊死亡 |
 
 ---
 
-## Where to look in the engine
+## Engine のどこを見るか
 
-All cited line numbers above point to:
+上記の引用行番号は全て以下を指す:
 
 `/home/yusuke_kaya/projects/kaggle/orbit-wars/.venv/lib/python3.11/site-packages/kaggle_environments/envs/orbit_wars/orbit_wars.py`
 
-and:
+および:
 
 `/home/yusuke_kaya/projects/kaggle/orbit-wars/.venv/lib/python3.11/site-packages/kaggle_environments/envs/orbit_wars/orbit_wars.json`
 
-Read these alongside the dense doc (`first-principles.dense.md`) for the full proof of each claim.
+各主張の完全な証明は dense doc (`first-principles.dense.md`) と並べて読むこと。

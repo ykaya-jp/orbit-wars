@@ -1,10 +1,10 @@
 # Experiment Management
 
-This doc describes the local agent-improvement loop:
+このドキュメントはローカルでの agent 改善ループを説明する:
 
 > ローカルで N agent をぶつけ → ELO で順位付け → 勝てば Kaggle に提出
 
-All commands are wired into the top-level `Makefile`.
+全コマンドはトップレベルの `Makefile` に組み込まれている。
 
 ## TL;DR
 
@@ -26,7 +26,7 @@ cp experiments/exp042/agent.py src/orbit_wars/agent.py
 make submit M="exp042: <one-liner>"
 ```
 
-## File layout
+## ファイルレイアウト
 
 ```
 orbit-wars/
@@ -46,11 +46,11 @@ orbit-wars/
 └── tournament_log.csv     # most-recent run output (gitignored)
 ```
 
-## Tools
+## ツール
 
 ### `tools.tournament` — round-robin runner
 
-CLI (also see `make tournament`):
+CLI (`make tournament` も参照):
 
 ```bash
 python -m tools.tournament \
@@ -59,32 +59,27 @@ python -m tools.tournament \
     --output tournament_log.csv
 ```
 
-For every (left, right, seed) combination it spawns a fresh subprocess and runs
-exactly one episode. Subprocesses are isolated for memory safety: a leak,
-infinite loop, or segfault in one episode never poisons the rest.
+各 (left, right, seed) の組み合わせについて新しい subprocess を起動し、ちょうど 1 episode 実行する。Subprocess は memory 安全性のために隔離される: 1 episode 内のリーク、無限ループ、segfault は他の episode を汚染しない。
 
-Each episode appends one row with these columns:
+各 episode は以下のカラムを持つ 1 行を append する:
 
-| column                 | meaning                                             |
+| カラム                 | 意味                                                   |
 | ---------------------- | --------------------------------------------------- |
 | `timestamp`            | ISO-8601 UTC                                        |
-| `seed`                 | env seed used                                       |
-| `agent_left_path`      | normalized name (repo-relative path or `random` etc.) |
-| `agent_right_path`     | same, for player 1                                  |
+| `seed`                 | 使用された env seed                                       |
+| `agent_left_path`      | 正規化された名前 (リポジトリ相対パスまたは `random` 等) |
+| `agent_right_path`     | player 1 用、同様                                  |
 | `agent_left_reward`    | +1 / −1 / 0                                         |
 | `agent_right_reward`   | +1 / −1 / 0                                         |
-| `step_count`           | total env steps                                     |
-| `episode_duration_sec` | wall-clock seconds                                  |
+| `step_count`           | env step の総数                                     |
+| `episode_duration_sec` | 壁時計秒                                     |
 | `status_left`          | `DONE` / `TIMEOUT` / `ERROR` / `INVALID`            |
-| `status_right`         | same                                                |
-| `error`                | populated only when subprocess crashed              |
+| `status_right`         | 同様                                                |
+| `error`                | subprocess がクラッシュした時のみ埋まる              |
 
-Built-in opponent names (`random`, `starter`) are passed through verbatim;
-anything else is treated as a path to a Python agent file.
+組み込みの対戦相手名 (`random`, `starter`) は verbatim で渡される。それ以外は Python agent ファイルへのパスとして扱われる。
 
-Per-episode timeout: 600 s. Tournament rows with non-`DONE` statuses are
-skipped by `tools.elo update` so the ELO ledger never gets corrupted by a
-crash.
+Episode あたりのタイムアウト: 600 s。`DONE` 以外のステータスを持つ tournament 行は `tools.elo update` でスキップされ、ELO ledger がクラッシュで破損することはない。
 
 ### `tools.elo` — TrueSkill ledger
 
@@ -94,7 +89,7 @@ python -m tools.elo show                               # print top 20
 python -m tools.elo reset                              # delete ledger (with confirm)
 ```
 
-The ledger is a single JSON file (`elo.json` at repo root by default):
+ledger は単一の JSON ファイル (デフォルトでリポジトリルートの `elo.json`):
 
 ```json
 {
@@ -104,19 +99,14 @@ The ledger is a single JSON file (`elo.json` at repo root by default):
 }
 ```
 
-We use **TrueSkill** (Microsoft) under the hood, not classical Elo. `mu` is the
-mean skill estimate, `sigma` is the uncertainty. The "rank" column shown by
-`elo show` is `mu - 3*sigma` — the conservative "skill we're ~99% sure they
-exceed" number, which is the standard TrueSkill leaderboard metric.
+裏では古典的な Elo ではなく **TrueSkill** (Microsoft) を使用している。`mu` は技量の平均推定値、`sigma` は不確実性。`elo show` が表示する「rank」カラムは `mu - 3*sigma` — 「99% 確実に超える技量」という保守的な数字で、TrueSkill リーダーボードの標準指標。
 
-Reading the table:
+表の読み方:
 
-- New agents start at `mu=25.000, sigma=8.333` (TrueSkill defaults).
-- After enough games, `sigma` shrinks: more games → tighter rank estimate.
-- Ties in real reward (`agent_left_reward == agent_right_reward`) are passed to
-  TrueSkill as draws, which barely move `mu` for either side.
-- Crashes / timeouts (rows with `status != DONE`) are skipped, never counted as
-  losses.
+- 新しい agent は `mu=25.000, sigma=8.333` (TrueSkill デフォルト) で開始。
+- 十分な対戦数の後、`sigma` は縮む: 対戦数が増えるほど rank 推定が引き締まる。
+- 実 reward の引き分け (`agent_left_reward == agent_right_reward`) は draw として TrueSkill に渡され、両者の `mu` をほとんど動かさない。
+- クラッシュ / タイムアウト (`status != DONE` の行) はスキップされ、敗北としてカウントされない。
 
 ### `tools.decode_episode` — replay → CSV
 
@@ -126,15 +116,13 @@ python -m tools.decode_episode \
     --output outputs/episode_76156402.csv
 ```
 
-Or via Make:
+Make 経由の場合:
 
 ```bash
 make decode EP_ID=episode-76156402-replay
 ```
 
-Output columns: `step, player, ships_total, planets_owned, fleets_count,
-biggest_fleet, ships_in_flight`. Useful for quick post-mortems in pandas /
-notebooks.
+出力カラム: `step, player, ships_total, planets_owned, fleets_count, biggest_fleet, ships_in_flight`。pandas / notebook での簡単な事後分析に有用。
 
 ### `tools.replay_viewer` — replay → HTML
 
@@ -144,31 +132,24 @@ python -m tools.replay_viewer \
     --output outputs/replays/episode-76156402.html
 ```
 
-Reconstructs the env, plays back the steps, and writes the standalone HTML
-viewer that Kaggle's web UI uses.
+env を再構築し、step を再生し、Kaggle の Web UI が使うのと同じスタンドアロン HTML viewer を出力する。
 
-## Experiment dir convention
+## 実験ディレクトリの規約
 
-Use one directory per experiment under `experiments/expNNN/`. The `make exp
-NAME=expNNN` target seeds it with a copy of the current `src/orbit_wars/agent.py`.
+実験ごとに 1 ディレクトリを `experiments/expNNN/` 配下に作る。`make exp NAME=expNNN` ターゲットは現在の `src/orbit_wars/agent.py` のコピーで初期化する。
 
-Required files:
+必須ファイル:
 
-- `agent.py` — frozen, byte-identical with what was tested
-- `config.yaml` — hyperparams, the agent description, the Kaggle submission ID
-  if shipped
-- `notes.md` — short retrospective: approach / what worked / what didn't / next
-- `tournament_log.csv` — the actual round-robin run that bootstrapped this
-  experiment's ELO entry
+- `agent.py` — テストされたものとバイト単位で同一の凍結版
+- `config.yaml` — ハイパーパラメータ、agent の説明、出荷した場合の Kaggle submission ID
+- `notes.md` — 短い振り返り: アプローチ / うまくいったこと / うまくいかなかったこと / 次
+- `tournament_log.csv` — この実験の ELO エントリを bootstrap した実際の round-robin 実行
 
-We treat each `experiments/expNNN/` dir as **immutable after submission**. If
-you want to tweak the hyperparams, start `expNNN+1` instead of editing in
-place. The ELO ledger then carries the lineage automatically.
+各 `experiments/expNNN/` ディレクトリは **submission 後は immutable** として扱う。ハイパーパラメータを微調整したい場合は、in-place で編集せず `expNNN+1` を始める。ELO ledger が自動的に系譜を引き継ぐ。
 
-## Walk-through: exp001
+## ウォークスルー: exp001
 
-`experiments/exp001/` is the retroactive snapshot of the very first agent
-shipped to Kaggle (commit `9ea65e9`, submission ID `52478880`).
+`experiments/exp001/` は Kaggle に最初に出荷した agent (commit `9ea65e9`、submission ID `52478880`) のレトロアクティブなスナップショット。
 
 ```bash
 $ cat experiments/exp001/notes.md           # read the post-mortem
@@ -180,7 +161,7 @@ starter                       31.921    1.924   26.148    36
 random                        19.788    3.246   10.051    36
 ```
 
-How that ledger was built:
+その ledger がどう構築されたか:
 
 ```bash
 make tournament TOURN_AGENTS="experiments/exp001/agent.py random starter" \
@@ -190,7 +171,7 @@ make tournament TOURN_AGENTS="experiments/exp001/agent.py random starter" \
 make rank
 ```
 
-To start a follow-up experiment:
+フォローアップ実験を始めるには:
 
 ```bash
 make exp NAME=exp002
@@ -200,17 +181,10 @@ make tournament TOURN_AGENTS="experiments/exp002/agent.py experiments/exp001/age
 make rank
 ```
 
-If exp002 sits at the top of `make rank` with reasonable `n_games`, copy it
-back to `src/orbit_wars/agent.py` and submit with `make submit M="exp002: …"`.
+exp002 が `make rank` のトップに合理的な `n_games` で位置するなら、`src/orbit_wars/agent.py` にコピーバックし、`make submit M="exp002: …"` で submit する。
 
-## Operational notes
+## 運用上の注意
 
-- **Reset the ledger** when you've changed pairings drastically (different
-  agent names) or want a clean comparison: `python -m tools.elo reset`. The
-  CSVs are the source of truth — `update --from <csv>` rebuilds the ledger
-  deterministically.
-- **Timeouts:** 600 s per episode is generous. If you start hitting it, look
-  at the agent first (likely an O(N²) loop in fleet planning).
-- **CI:** the verification flow at the bottom of `tools/tournament.py`'s
-  module docstring is the smallest run that exercises every code path
-  (3 agents × 2 seeds × 2 episodes = 24 rows).
+- **ledger をリセットする** のは、ペアリングを大幅に変更した (異なる agent 名) か、クリーンな比較が欲しいとき: `python -m tools.elo reset`。CSV が真実の源なので、`update --from <csv>` で ledger を決定的に再構築できる。
+- **タイムアウト:** episode あたり 600 s は寛容。これに当たり始めたら、まず agent を見る (おそらく fleet planning の O(N²) ループ)。
+- **CI:** `tools/tournament.py` のモジュール docstring 末尾の検証フローは、全コードパスを通す最小実行 (3 agents × 2 seeds × 2 episodes = 24 行)。
