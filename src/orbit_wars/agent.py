@@ -1,43 +1,69 @@
-"""Orbit Wars exp002 — mission-based agent (Stage 1 Day 1-2).
+"""Orbit Wars exp002 — mission-based agent.
 
-Stage 1 では `CaptureMission` のみで rule-base sniper を上回ることを目指す:
-  - ROI ベースの target 選択 (近さだけでなく production も考慮)
-  - 太陽 forbidden cone を回避する発射角
-  - orbiting 惑星には lead-shot で命中角を計算
-  - sniper の RESERVE / MAX_FRACTION / MARGIN は維持 (= 後方互換)
+Stage 1 では mission-based 意思決定で rule-base sniper を上回ることを目指す。
+当面は `CaptureMission` のみ有効化 (Day 1-2 で sniper を 100% 勝率で上回ることを確認済)。
 
-Day 3-11 で Defense / CometGrab / Recapture / FleetAggregation / Snipe / Swarm を追加予定。
+Day 3-4 で実装した `RecaptureMission` / `CometGrabMission` は **本番では無効化**。
+理由は下記コメント参照。Day 5+ で `FleetAggregationMission` と協調させて再評価予定。
 
 This file IS the submission entry point: `kaggle competitions submit -f main.py`.
 """
 
 from __future__ import annotations
 
-import math
-
 # Import strategy: try package-relative first (when imported as orbit_wars.agent),
 # fall back to sibling-file import via sys.path (when kaggle_environments / Kaggle
 # eval loads this file standalone — no __package__ context).
 try:
-    from .missions import CaptureMission, Dispatcher, parse_observation
+    from .missions import (
+        CaptureMission,
+        CometGrabMission,
+        Dispatcher,
+        RecaptureMission,
+        parse_observation,
+    )
 except (ImportError, KeyError):
     # kaggle_environments の `get_last_callable` は `sys.path.append(exec_dir)` を
     # 行ってから exec する (kaggle_environments/agent.py:51-53)。よって sibling
     # ファイルは module top-level からそのまま import できる。
-    from missions import CaptureMission, Dispatcher, parse_observation  # type: ignore[no-redef]
+    from missions import (  # type: ignore[no-redef]
+        CaptureMission,
+        CometGrabMission,
+        Dispatcher,
+        RecaptureMission,
+        parse_observation,
+    )
 
-# Module-level singleton — episode 内でターンを跨いで保持される (将来 OpponentClassifier
-# などの状態をここに持たせる)
-_DISPATCHER = Dispatcher(
-    missions=[
-        CaptureMission(
-            reserve=5,
-            max_fraction=0.85,
-            margin=1,
-            sun_safety_margin_deg=2.0,
-        ),
-    ]
-)
+# Day 3-4 観測 (3 tournaments × 90 games each):
+#   Recapture/Comet を enable すると v2 (Capture のみ) に対して 16.7% 勝率まで落ちた。
+#   tightening (max_comet_ships=25, min_production=3) や multi-move dispatcher 化でも
+#   改善せず。
+# 原因仮説:
+#   - "extra launch" が home の ship 蓄積を阻害する
+#   - v2 の pure expansion は長期戦で復利を稼ぐ
+#   - Recapture/Comet は単発で見ると ROI 正だが、複利な expansion を阻害する
+# 結論:
+#   - 新 mission classes は code として保持 (test カバー済)
+#   - 本番 (production) は CaptureMission のみ enable
+#   - Day 5+ で FleetAggregationMission を入れて、ships 余剰時のみ追加発射する
+#     設計に変えてから enable を再検討
+ENABLE_DAY3_MISSIONS: bool = False
+
+_missions: list = [
+    CaptureMission(
+        reserve=5,
+        max_fraction=0.85,
+        margin=1,
+        sun_safety_margin_deg=2.0,
+    ),
+]
+if ENABLE_DAY3_MISSIONS:
+    _missions = [
+        RecaptureMission(reserve=5, max_fraction=0.85),
+        CometGrabMission(reserve=5, max_fraction=0.85),
+    ] + _missions
+
+_DISPATCHER = Dispatcher(missions=_missions)
 
 
 def agent(observation, configuration=None):
@@ -52,55 +78,3 @@ def agent(observation, configuration=None):
     except Exception:
         # 万が一の例外は黙って no-op (kaggle eval 環境で agent が落ちないように)
         return []
-
-
-# ----- Backward-compat for inline submission as a single-file `main.py` -----
-# Kaggle がこの module を import し直しで `agent` 関数だけ参照するので、
-# package import が失敗するケースに備えてフォールバックを用意:
-#   `from .missions import ...` が失敗した場合、`main.py` 単独でも動くよう
-#   sniper logic を inline で持つ (現時点ではフォールバック未実装、Stage 2 で
-#   submission_queue.py が tar.gz を使うようになったら撤去)
-_USE_FALLBACK = False  # 通常は False、testing 用に True に切替可能
-
-
-if _USE_FALLBACK:
-    from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
-
-    RESERVE = 5
-    MAX_FRACTION = 0.85
-    MARGIN = 1
-
-    def _capacity(p: Planet) -> int:
-        return max(0, min(int(p.ships * MAX_FRACTION), p.ships - RESERVE))
-
-    def _distance(a: Planet, b: Planet) -> float:
-        return math.hypot(a.x - b.x, a.y - b.y)
-
-    def agent(observation, configuration=None):  # noqa: F811
-        if isinstance(observation, dict):
-            get = observation.get
-        else:
-
-            def get(key, default=None):
-                return getattr(observation, key, default)
-
-        raw_planets = get("planets", []) or []
-        player = get("player", 0) or 0
-        planets = [Planet(*p) for p in raw_planets]
-        my_planets = [p for p in planets if p.owner == player]
-        targets = [p for p in planets if p.owner != player]
-        if not my_planets or not targets:
-            return []
-
-        moves: list[list[float]] = []
-        for mine in my_planets:
-            cap = _capacity(mine)
-            if cap <= 0:
-                continue
-            nearest = min(targets, key=lambda t: _distance(mine, t))
-            ships_needed = nearest.ships + 1 + (MARGIN if nearest.owner != -1 else 0)
-            if ships_needed > cap:
-                continue
-            angle = math.atan2(nearest.y - mine.y, nearest.x - mine.x)
-            moves.append([mine.id, angle, int(ships_needed)])
-        return moves
