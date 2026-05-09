@@ -1,0 +1,20 @@
+# RL / agent comp config
+slug: orbit-wars
+
+# Local play settings
+play:
+  opponents: [random, self]   # cycle through these in CI
+  episodes_per_opponent: 5
+  seed: 42
+
+# Submission strategy
+submit:
+  mode: single_file           # single_file | tar_bundle
+  message_template: "exp001 {agent_name}"
+
+# (When you start training:)
+training:
+  enabled: false
+  algorithm: ppo              # ppo | dqn | a2c | sac (depends on env)
+  steps: 100000
+  device: cuda
