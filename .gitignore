@@ -46,3 +46,12 @@ submissions/*.txt
 
 # Notebook output (nbstripout handles this on commit, but keep gitignore as belt+suspenders)
 *-checkpoint.ipynb
+
+# Replay JSON downloads — large, regenerable via `kaggle competitions replay`
+data/replays/*
+!data/replays/.gitkeep
+
+# ELO ledger — local state, regenerable from tournament logs
+elo.json
+/tournament_log.csv
+!experiments/**/tournament_log.csv

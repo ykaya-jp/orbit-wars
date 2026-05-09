@@ -1,0 +1,43 @@
+# exp001 — nearest-planet sniper baseline
+#
+# This is a retroactive snapshot of the first agent we shipped to Kaggle.
+# The agent.py here is byte-identical to what was submitted (commit 9ea65e9).
+
+experiment:
+  id: exp001
+  name: nearest-sniper
+  description: >
+    Greedy single-target sniper: each owned planet launches at its nearest
+    non-owned planet using just enough ships to capture it (garrison + 1 for
+    neutrals, garrison + 1 + MARGIN for enemies). Reserves a fixed garrison
+    on every source planet to avoid suiciding.
+  agent_path: experiments/exp001/agent.py
+  source_commit: 9ea65e9
+  date: 2026-05-09
+
+hyperparams:
+  RESERVE: 5            # ships kept behind on every source planet
+  MAX_FRACTION: 0.85    # max fraction of garrison to launch at once
+  MARGIN: 1             # extra ships sent vs enemy planets
+
+submission:
+  kaggle_id: 52478880
+  baseline_elo: 600     # seed value the comp uses for new agents
+
+# Inherit play / submit defaults from the project-level config.
+inherits: ../../configs/exp001.yaml
+
+# Local play settings (mirrors configs/exp001.yaml at the time of experiment).
+play:
+  opponents: [random, self]
+  episodes_per_opponent: 5
+  seed: 42
+
+# Tournament configuration used to bootstrap the ELO ledger.
+tournament:
+  agents:
+    - experiments/exp001/agent.py
+    - random
+    - starter
+  episodes: 3
+  seeds: [1, 2, 3]

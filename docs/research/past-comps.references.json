@@ -1,0 +1,220 @@
+{
+  "_meta": {
+    "track": "A — past similar Kaggle simulation/agent comps",
+    "compiled_for": "orbit-wars (kaggle_environments, 2D continuous-space conquest RTS, +1/-1 binary reward)",
+    "compiled_on": "2026-05-09",
+    "ordering": "most-recent first; Halite II flagged as structurally most similar to orbit-wars"
+  },
+
+  "lux_ai_s3": {
+    "comp_url": "https://www.kaggle.com/competitions/lux-ai-season-3",
+    "year": "2024-2025",
+    "venue": "NeurIPS 2024",
+    "paper_url": "https://openreview.net/forum?id=7t8kWYbOcj",
+    "structural_relevance": "high — partial observability + best-of-5 meta-learning + 24x24 grid + sap actions",
+    "top1_team": "Frog Parade (Isaiah Pressman)",
+    "top1_writeup_url": "https://github.com/IsaiahPressman/kaggle-lux-2024/blob/main/write-up.md",
+    "top1_repo_url": "https://github.com/IsaiahPressman/kaggle-lux-2024",
+    "technique": "deep_rl_ppo_with_se_resnet",
+    "architecture": "8-block 3x3 SE-ResNet, 256 hidden, ~10M params, dual actor heads (10 movement + spatial sap target), 10-frame history",
+    "compute": "1x RTX 3090 + 1x RTX 2070S, 64GB RAM, AMD 9950X 16-core; ~110k env steps/s; ~430 train steps/s; ~300M frames over ~8 days (in-house Rust simulator)",
+    "key_tricks": [
+      "Custom Rust simulator (TDD against official Python engine)",
+      "Hidden-info inference: deduce point-tile locations, asteroid/nebula movement, energy field params from observation deltas",
+      "Symmetry exploitation: reflect features across diagonal; test-time aug with diagonal+180 rotation",
+      "Selective action masking",
+      "Predicted asteroid/nebula motion as input feature"
+    ]
+  },
+
+  "lux_ai_s2": {
+    "comp_url": "https://www.kaggle.com/competitions/lux-ai-season-2",
+    "year": "2023",
+    "venue": "NeurIPS 2023",
+    "structural_relevance": "medium — discrete grid, but multi-unit factory placement + lichen growth (orbit-wars has resource generation similar to lichen)",
+    "top1_team": "ry-andy",
+    "top1_writeup_url": "https://www.kaggle.com/competitions/lux-ai-season-2/writeups/ry-andy-1st-place-solution",
+    "top1_repo_url": "https://github.com/ryandy/Lux-S2-public",
+    "technique": "heuristic_python_pure",
+    "compute": "modest — Python heuristic, no GPU training",
+    "n_teams": 646,
+    "notes": "Despite NeurIPS providing >1B frames of S1 imitation-learning data, the Kaggle leaderboard was won by a pure-Python rule-based bot. RL track was a separate scored evaluation. This is the canonical lesson: heuristic still beats RL on Kaggle leaderboards when env is complex and compute-budgeted."
+  },
+
+  "lux_ai_s2_il_track": {
+    "comp_url": "https://www.kaggle.com/competitions/lux-ai-season-2-neurips-stage-2",
+    "year": "2023",
+    "structural_relevance": "the IL/RL stage; >1B frames of S1 play data provided by organizers; demonstrates IL + PPO finetune is viable but did not win the Kaggle bot LB"
+  },
+
+  "kore_2022": {
+    "comp_url": "https://www.kaggle.com/competitions/kore-2022",
+    "year": "2022",
+    "structural_relevance": "high — fleet movement, resource collection, attack/defense, kaggle_environments backbone",
+    "top1_writeup_url": "https://www.kaggle.com/competitions/kore-2022/discussion/340035",
+    "top1_repo_url": "https://github.com/khanhvu207/kore2022",
+    "technique": "imitation_learning_autoregressive_transformer",
+    "architecture": "Pixel-BERT-style multi-modal Transformer; 12-layer ResNet w/ GroupNorm encoder for 18-channel spatial; MLP for scalars; bag-of-words char embedding (256-d) for ship plans; autoregressive char-level decoder (commands like 'N 10 W 5')",
+    "training": "200M (obs, plan) tuples scraped from top-5 leaderboard submissions",
+    "compute": "2x A100 80GB, batch 64, 20 epochs, AdamW lr=4e-3 cosine, 5% warmup, gradclip 0.5, 60% spatial pixel dropout aug",
+    "key_tricks": [
+      "Tokenize ship plan as character sequence (translation-style seq2seq)",
+      "[CLS] token -> action-type classifier head",
+      "Bag-of-words ship-plan embedding to avoid second Transformer cost",
+      "Aggressive 60% pixel dropout regularization on spatial input"
+    ]
+  },
+
+  "halite_2": {
+    "comp_url": "https://www.kaggle.com/competitions/halite-ii",
+    "year": "2017-2018",
+    "structural_relevance": "MAXIMUM — 2D continuous-space, planet docking, fleet vs fleet melee, exact analog of orbit-wars",
+    "n_players": 6000,
+    "top1_team": "reCurs3 (Ubisoft Montreal AC dev)",
+    "top1_writeup_url": "https://recursive.cc/blog/halite-ii-post-mortem.html",
+    "top1_writeup_mirror": "https://medium.com/aescru/halite-ii-strategies-of-a-top-player-88127b3b49e2",
+    "top2_team": "FakePsyho (OpenAI, Polish puzzle champion)",
+    "top2_repo_url": "https://github.com/FakePsyho/halite2",
+    "top3_team": "shummie (Allstate actuary, Chicago)",
+    "top3_writeup_url": "https://shummie.github.io/Halite-2-Shummie/",
+    "top3_review_url": "https://lakesidethinks.com/post/2018/10/halite2-strategy.html",
+    "twosigma_announcement": "https://www.twosigma.com/articles/halite-ii-concludes-winners-announced/",
+    "technique": "heuristic_state_based_with_simulation_search",
+    "compute": "negligible — single-thread CPU heuristic",
+    "key_tricks": [
+      "Fight-or-flight: sum nearby_enemies − nearby_allies in radius; if outnumbered, run vector = -mean(enemy_positions) (Coulomb-style 180° flee)",
+      "Iterative simulation refinement: test 19 enemy response patterns, choose conservative move",
+      "Multi-pass: strategic role assignment (colonize/defend/attack) then tactical hill-climbing on positions",
+      "Planet priority: 3 pts/dock-spot scaled by inverse distance; cutoff dist<75 in 2p, prefer outer planets in 4p",
+      "Anti-rush via simple thresholds (don't dock if enemy within X)",
+      "Ship pruning: only consider ships within (2*MAX_SPEED + WEAPON_RADIUS + 2*SHIP_RADIUS) of you",
+      "Desertion meta (4p): hide one ship in corner to outlive opponents and steal 2nd place",
+      "Non-aggression pact (shummie): hidden coordination signals between bots (controversial)",
+      "Distractor role: harass docked ships to split enemy defenses"
+    ]
+  },
+
+  "halite_4": {
+    "comp_url": "https://www.kaggle.com/c/halite",
+    "year": "2020",
+    "structural_relevance": "medium — 4-player grid, but ship economy + combat nearly identical signature to orbit-wars",
+    "top1_team": "Tom Van de Wiele (ttvand)",
+    "top1_repo_url": "https://github.com/ttvand/Halite",
+    "top1_kaggle_profile": "https://www.kaggle.com/tvdwiele",
+    "top1_discussion": "https://www.kaggle.com/c/halite/discussion/183312",
+    "top1_technique": "rule_based_with_neural_collision_predictor",
+    "top1_notes": "Repo has separate 'Rule agents' and 'Deep Learning Agents' folders — final winner combined heuristic strategy with NN for opponent move prediction",
+    "top4_team": "0Zeta",
+    "top4_repo_url": "https://github.com/0Zeta/HaliteIV-Bot",
+    "top4_technique": "100%_rule_based_evolutionary_param_tuning",
+    "top4_notes": "Triangle-shipyard 'plantation' farming, 100+ tunable params (later abandoned EA due to overfit), linear-sum-assignment for simultaneous ship moves, 10 ship roles (mining/returning/hunting/guarding/etc.)",
+    "convex_team_writeup_url": "https://khavo.ai/2020/09/15/halite/",
+    "convex_team_writeup_mirror": "https://voanhkha.github.io/2020/09/15/halite/",
+    "convex_team_technique": "imitation_learning_semantic_segmentation",
+    "convex_team_placement": "rank 8/1143",
+    "convex_team_notes": "Centralized per-ship action prediction via semantic segmentation; heuristic overrides for spawn/convert/base protect"
+  },
+
+  "halite_3": {
+    "comp_url": "https://halite.io/",
+    "year": "2018-2019",
+    "structural_relevance": "low — 2D grid, halite collection + dropoffs, less melee than orbit-wars",
+    "top1_team": "teccles",
+    "top1_repo_url": "https://github.com/teccles-halite/halite3-bot",
+    "top1_technique": "heuristic_dijkstra_optimization",
+    "top1_notes": "Each ship runs Dijkstra to compute halite/turn for every square; chooses target maximizing gain rate. Collision threshold uses ownership × halite × ship-value. Dropoff scoring = halite_density / (cost − square_halite)",
+    "place6_repo_url": "https://github.com/TheDuck314/halite2018",
+    "place6_technique": "heuristic_cpp_with_nn_collision_predictor",
+    "place6_notes": "Rewrote Python→C++ for speed; NN predicts opponent move probabilities; only commits move if ≥98% safe. Mining score = (dist_to + mining_time + return_dist) with 1.75x distance penalty"
+  },
+
+  "lux_ai_s1": {
+    "comp_url": "https://www.kaggle.com/competitions/lux-ai-2021",
+    "year": "2021",
+    "structural_relevance": "medium — discrete grid, day/night cycle adds temporal complexity",
+    "top1_team": "Toad Brigade",
+    "top1_writeup_url": "https://www.kaggle.com/competitions/lux-ai-2021/writeups/toad-brigade-toad-brigade-s-approach-deep-reinforc",
+    "top1_technique": "deep_rl_impala_upgo_tdlambda",
+    "architecture": "fully convolutional ResNet w/ SE; 24 residual blocks, 128-channel 5x5; ~20M params; no batch-norm in residual blocks; 3 actor heads (workers/carts/city-tiles) + 1 critic",
+    "compute": "single 8c/16t personal PC w/ dual GPU; overnight training",
+    "key_tricks": [
+      "GridNet action space (one network per grid cell)",
+      "Single network controls ALL units → emergent cooperation (vs. per-unit nets)",
+      "Reward shaping for first 20M steps then sparse +1/-1",
+      "Progressive net size 8→16→24 blocks with teacher distillation (KL)",
+      "Day/night and game-phase explicit input dims",
+      "Test-time augmentation: 180° rotation averaging",
+      "IMPALA + UPGO + TD(λ) loss, NOT plain PPO"
+    ],
+    "il_alt": {
+      "team": "IsaiahPressman",
+      "repo": "https://github.com/IsaiahPressman/Kaggle_Lux_AI_2021"
+    }
+  },
+
+  "hungry_geese": {
+    "comp_url": "https://www.kaggle.com/competitions/hungry-geese",
+    "year": "2021",
+    "structural_relevance": "low — 7x11 toroidal snake game, but illustrates AlphaZero/MCTS dominance",
+    "n_teams": 875,
+    "top1_team": "HandyRL (DeNA)",
+    "top1_framework_url": "https://github.com/DeNA/HandyRL",
+    "top1_technique": "distributed_off_policy_drl_self_play_cnn",
+    "top1_notes": "CNN treats grid as torus; step-count channel for endgame strategy; mixed past versions during training (not pure self-play)",
+    "place5_writeup_url": "https://www.kaggle.com/competitions/hungry-geese/writeups/takedarts-5th-place-solution-geesezero",
+    "japanese_retrospective_url": "https://zenn.dev/ktechb/articles/e2394bc27358c4",
+    "key_tricks": [
+      "Continuous body gradient (1.0 head → 0.0 tail) instead of binary mask",
+      "Step-count channel as model input (essential late-game)",
+      "Mixed-version opponent pool (not vanilla self-play)",
+      "AlphaZero-style MCTS bolt-on at end with simultaneous-action + stochastic-food modifications"
+    ]
+  },
+
+  "microrts_2023": {
+    "comp_url": "https://github.com/Farama-Foundation/MicroRTS",
+    "paper_url": "https://arxiv.org/abs/2402.08112",
+    "year": "2023",
+    "structural_relevance": "medium — RTS, similar action structure",
+    "top1_team": "RAISocketAI",
+    "top1_technique": "behavior_cloning_then_ppo_finetune",
+    "compute": "RAISocketAI 70 GPU-days (A10/A6000/A100); BC+PPO follow-up 142 GPU-days total (A10)",
+    "notes": "First DRL agent to win IEEE microRTS. BC+PPO matched 88% win rate without per-map specialization. PPO struggled on largest 64x64 map; authors suggest A2C as smoother BC→DRL transition.",
+    "key_tricks": [
+      "DoubleCone(4,6,4) architecture w/ SE blocks + adaptive pooling for variable map sizes",
+      "Curriculum: 16x16 → 32x32 transfer-finetune → 64x64 (94% of win came from 16x16, 64x64 marginal)",
+      "Cross-entropy BC loss SCALED BY UNIT COUNT (allowed much higher LR)",
+      "Mixed reward schedule: dense early → sparse +1/-1 late",
+      "Invalid action masking 'essential to compete at basic level'"
+    ]
+  },
+
+  "_cross_comp_synthesis": {
+    "when_heuristic_won": [
+      "Halite II 1st (reCurs3, 2017)",
+      "Halite IV 1st (ttvand, 2020) — heuristic core w/ NN collision aid",
+      "Halite IV 4th (0Zeta, 2020) — pure heuristic, 100+ params",
+      "Halite III 1st (teccles, 2019)",
+      "Lux AI S2 1st (ry-andy, 2023) — pure Python heuristic beat IL/RL competitors",
+      "Kore 2022 leaderboard prior to IL submission"
+    ],
+    "when_imitation_learning_won": [
+      "Kore 2022 1st (khanhvu207) — autoregressive Transformer on 200M tuples from top-5 IL targets",
+      "Halite IV rank 8 (Convex/khavo) — semantic-segmentation IL"
+    ],
+    "when_drl_won": [
+      "Lux AI S1 1st (Toad Brigade, IMPALA+UPGO+TD(λ), 2021)",
+      "Lux AI S3 1st (Frog Parade, PPO+SE-ResNet, 2024)",
+      "Hungry Geese 1st (HandyRL, distributed off-policy, 2021)",
+      "microRTS 2023 (BC bootstrap + PPO finetune)"
+    ],
+    "trend": "Until 2023 the Kaggle simulation LB was dominated by heuristic. With Lux S3 (2024) DRL won on a partial-observability + meta-learning game where heuristic could not encode all hidden dynamics. orbit-wars is fully observable + symmetric, which favors heuristic baselines, but the 2-month timeline + 2370 teams favors hybrid (heuristic core + ML for opponent prediction or policy distillation).",
+    "transferable_recipe_for_orbit_wars": [
+      "Phase 1 (week 1-2): pure heuristic w/ fight-or-flight + planet priority queue (Halite II reCurs3 pattern). Cite: recursive.cc.",
+      "Phase 2 (week 3-4): add NN opponent move predictor for combat decisions (Halite III TheDuck314 pattern + 98% safety threshold).",
+      "Phase 3 (week 5-6): scrape top-N leaderboard replays, BC autoregressive policy on (obs, action) tuples (Kore 2022 pattern, 60% spatial dropout aug).",
+      "Phase 4 (week 7-8): PPO finetune w/ per-unit cross-entropy loss scaled by unit count (microRTS 2023 trick).",
+      "Mandatory tricks: action masking, symmetry test-time aug (4-fold around (50,50)), ship pruning by interaction radius."
+    ]
+  }
+}

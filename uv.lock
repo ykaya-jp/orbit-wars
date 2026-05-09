@@ -2715,6 +2715,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "tqdm" },
+    { name = "trueskill" },
 ]
 
 [package.optional-dependencies]
@@ -2745,6 +2746,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.5" },
     { name = "scipy", specifier = ">=1.13" },
     { name = "tqdm", specifier = ">=4.66" },
+    { name = "trueskill", specifier = ">=0.4.5" },
 ]
 provides-extras = ["dev"]
 
@@ -4646,6 +4648,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/f0/2a/d13d3c38862632742
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/2b/36e984399089c026a6499ac8f7401d38487cf0183839a4aa78140d373771/treescope-0.1.10-py3-none-any.whl", hash = "sha256:dde52f5314f4c29d22157a6fe4d3bd103f9cae02791c9e672eefa32c9aa1da51", size = 182255, upload-time = "2025-08-08T05:43:46.673Z" },
 ]
+
+[[package]]
+name = "trueskill"
+version = "0.4.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/b1/572f309178eacdccd9f9f5f3e3e14fb3543a89c6259d62b36660350af2b9/trueskill-0.4.5.tar.gz", hash = "sha256:9d62b48d2428369d712bd9becff9f9a2caa325e1a2ab5f9392d34bff757867bb", size = 21315, upload-time = "2018-09-07T12:27:32.078Z" }
 
 [[package]]
 name = "typer"

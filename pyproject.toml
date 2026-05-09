@@ -21,6 +21,7 @@ dependencies = [
     "kaggle-environments>=1.28.0",
     # RL training (optional, opt-in via `uv add`):
     #   stable-baselines3, gymnasium, ray[rllib], cleanrl
+    "trueskill>=0.4.5",
 ]
 
 [project.optional-dependencies]

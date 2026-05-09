@@ -1,4 +1,4 @@
-.PHONY: help install download play episodes replay logs lb submit submit-tar lint test fmt clean
+.PHONY: help install download play episodes replay logs lb submit submit-tar lint test fmt clean tournament rank exp decode
 
 SLUG := orbit-wars
 PKG  := orbit_wars
@@ -94,3 +94,33 @@ clean:
 	rm -rf __pycache__ .pytest_cache .ruff_cache
 	rm -rf outputs/replays/* outputs/logs/*
 	@touch outputs/logs/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Experiment management (tools/tournament.py + tools/elo.py)
+# ---------------------------------------------------------------------------
+
+# Round-robin tournament defaults. Override on the command line, e.g.
+#   make tournament TOURN_AGENTS="experiments/exp002/agent.py random" \
+#                   TOURN_EPISODES=10 TOURN_SEEDS=1,2,3,4
+TOURN_AGENTS   ?= src/orbit_wars/agent.py random starter
+TOURN_EPISODES ?= 5
+TOURN_SEEDS    ?= 1,2,3
+
+tournament:
+	$(UV) run python -m tools.tournament --agents $(TOURN_AGENTS) --episodes $(TOURN_EPISODES) --seeds $(TOURN_SEEDS) --output tournament_log.csv
+	$(UV) run python -m tools.elo update --from tournament_log.csv
+
+rank:
+	$(UV) run python -m tools.elo show
+
+# Bootstrap a new experiment dir: experiments/<NAME>/agent.py from the current head agent.
+exp:
+	@if [ -z "$(NAME)" ]; then echo "usage: make exp NAME=expNNN"; exit 1; fi
+	mkdir -p experiments/$(NAME)
+	cp src/orbit_wars/agent.py experiments/$(NAME)/agent.py
+	@echo "created experiments/$(NAME)/. add config.yaml and notes.md"
+
+# Decode a downloaded replay JSON into a per-step CSV.
+decode:
+	@if [ -z "$(EP_ID)" ]; then echo "usage: make decode EP_ID=<episode-id>"; exit 1; fi
+	$(UV) run python -m tools.decode_episode --json data/replays/$(EP_ID).json --output outputs/episode_$(EP_ID).csv
