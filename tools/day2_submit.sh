@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Day 2 submission orchestration (refined after late-night discovery).
+# Day 2 submission orchestration — REVISED 2026-05-11 06:10 JST
 #
-# CRITICAL discovery (Day 1 evening): konbu17 + bovard-trained validator
-# resampled to LB 1017.0 (vs konbu17 original validator at 989.2).
-# Our bovard 59k-shot retrain was actually +28 over the author's 8.8k-shot
-# weights once LB resampling settled.
-#
-# Day 2 priority: stack our LB-best base (bovard validator) with the new
-# topk1 trick from konbu17/train-submit-v4-ml-validator-topk1-tutorial
-# (author claim +75 LB) and our own bowwow/Vadasz patches.
+# CRITICAL discovery (Day 2 dawn, 05:45 JST):
+#   thisisn0mad/Rudra9439 published rule-based submission (kaggle dataset 2026-05-10 16:22).
+#   4P tournament (24 ep combined) vs konbu17/Marco/orbitbotnext:
+#     Rudra:        14/24 = 58%
+#     orbitbotnext:  8/24 = 33%
+#     konbu17:       2/24 = 8%
+#     Marco:         0/24 = 0%
+#   → Rudra is decisively stronger than our LB-best (konbu17 hybrid @ 990).
+#   Day 2 priority shifted: Rudra base + variants take 3 of 5 slots.
 #
 # Run:  bash tools/day2_submit.sh
 # Each submission consumes one daily limit (5/day).
+#
+# Backup of original Day 2 plan is in git: see commit 5231610.
 
 set -e
 cd "$(dirname "$0")/.."
@@ -30,30 +33,32 @@ submit() {
   sleep 30
 }
 
-# 1. bovard validator + topk1: stack LB-best base (1017) with author's topk1 (+75 claim)
+# 1. PRIMARY BET: Rudra pure (= 58% local 4P win rate, public kernel CC0-1.0)
+submit "rudra pure" \
+  "submissions/build_rudra/main.py" \
+  "phase-rudra-pure (thisisn0mad/Rudra9439 publish 2026-05-10, local 58% 4P)"
+
+# 2. Rudra + bowwow-tuned (MIN_SHIPS_ATTACK 10→20, COOP 20→35, FRAC 0.7→0.85)
+submit "rudra aggressive" \
+  "submissions/build_rudra_aggressive/main.py" \
+  "phase-rudra-aggressive (bigger fleets per top-tier replay analysis)"
+
+# 3. bovard validator + topk1 (= our previous best path, LB1017 base + topk1 wrapper)
 submit "bovard + topk1" \
   "submissions/konbu17_bovard_topk1.tar.gz" \
   "phase-γ-bovard-topk1 (LB1017 base + topk1 wrapper, expect ~1100)"
 
-# 2. all-in: bovard validator + bowwow patch + topk1
-submit "bovard + bowwow + topk1" \
-  "submissions/konbu17_bovard_topk1_bowwow.tar.gz" \
-  "phase-γ-all-in (bovard+bowwow patch+topk1, expect 1050-1150)"
-
-# 3. bovard validator + bowwow patch (no topk1)
-submit "bovard + bowwow patch" \
+# 4. bovard validator + bowwow patch
+submit "bovard + bowwow" \
   "submissions/konbu17_bovard_bowwow.tar.gz" \
   "phase-γ-bovard-bowwow (bovard validator + WEAK_ENEMY/LONG_TRAVEL/ELIM patches)"
 
-# 4. original konbu17 validator + topk1 (author's pure recipe)
+# 5. Rudra + bovard validator stacking attempt
+# Note: Rudra is self-contained rule-base, not validator-based. Stacking would
+# require deep refactor. Save slot for a 4th Rudra-variant or konbu17_topk1 fallback.
 submit "konbu17 (orig) + topk1" \
   "submissions/konbu17_topk1.tar.gz" \
-  "phase-γ-topk1-pure (konbu17 author's pure +75 LB recipe)"
-
-# 5. original konbu17 validator + bowwow patch
-submit "konbu17 (orig) + bowwow" \
-  "submissions/konbu17_weak_enemy_aggressive.tar.gz" \
-  "phase-γ-bowwow-pure (konbu17 + our bowwow/Vadasz patches)"
+  "phase-γ-topk1-pure (konbu17 author pure +75 LB recipe, fallback if Rudra fails)"
 
 echo ""
 echo "=== Day 2 submissions complete (5/5 daily) ==="
