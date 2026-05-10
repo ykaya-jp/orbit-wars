@@ -38,10 +38,11 @@ submit "rudra pure" \
   "submissions/build_rudra/main.py" \
   "phase-rudra-pure (thisisn0mad/Rudra9439 publish 2026-05-10, local 58% 4P)"
 
-# 2. Rudra + bowwow-tuned (MIN_SHIPS_ATTACK 10→20, COOP 20→35, FRAC 0.7→0.85)
-submit "rudra aggressive" \
-  "submissions/build_rudra_aggressive/main.py" \
-  "phase-rudra-aggressive (bigger fleets per top-tier replay analysis)"
+# 2. Rudra ms=15 (lightweight 1D variation; ms=15 ≈ ms=25 tied 50/50 in self-play,
+#    aggressive 3-axis patch was 25% vs pure 75% so single-axis is safer)
+submit "rudra ms15" \
+  "submissions/build_rudra_ms15/main.py" \
+  "phase-rudra-ms15 (MIN_SHIPS_MINE_ATTACK 10→15, single-axis variant)"
 
 # 3. bovard validator + topk1 (= our previous best path, LB1017 base + topk1 wrapper)
 submit "bovard + topk1" \
