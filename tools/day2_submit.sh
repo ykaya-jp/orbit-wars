@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Day 2 submission orchestration.
+# Day 2 submission orchestration (refined after late-night discovery).
 #
-# Submits 5 candidates with 5-min spacing so we get distinct LB scores
-# (Kaggle resamples per-submission). Run from project root:
+# CRITICAL discovery (Day 1 evening): konbu17 + bovard-trained validator
+# resampled to LB 1017.0 (vs konbu17 original validator at 989.2).
+# Our bovard 59k-shot retrain was actually +28 over the author's 8.8k-shot
+# weights once LB resampling settled.
 #
-#     bash tools/day2_submit.sh
+# Day 2 priority: stack our LB-best base (bovard validator) with the new
+# topk1 trick from konbu17/train-submit-v4-ml-validator-topk1-tutorial
+# (author claim +75 LB) and our own bowwow/Vadasz patches.
 #
-# Each submission consumes one daily limit; we have 5/day so this uses all.
-# Do not run in parallel — submit one at a time and let LB resample between.
+# Run:  bash tools/day2_submit.sh
+# Each submission consumes one daily limit (5/day).
 
 set -e
 cd "$(dirname "$0")/.."
@@ -21,25 +25,35 @@ submit() {
   local desc=$3
   echo ""
   echo "=== $name ==="
-  echo "$KAGGLE competitions submit orbit-wars -f $file -m \"$SHA $desc\""
   $KAGGLE competitions submit orbit-wars -f "$file" -m "$SHA $desc"
   echo "submitted, sleeping 30s before next..."
   sleep 30
 }
 
-# Day 2 priority order (refined after evening research):
-# 1. konbu17 + topk1: konbu17 author's own +75 LB claim ("LB ~1049")
-#    Source: konbu17/train-submit-v4-ml-validator-topk1-tutorial
-# 2. konbu17 + weak_enemy_aggressive: our bowwow/Vadasz strategy patch
-# 3. konbu17 t=0.35: safe threshold tweak from default 0.40 (LB 989)
-# 4. orbitbotnext: untested LB, 4P 25% locally, 2P 85% — datapoint
-# 5. konbu17 t=0.45: opposite threshold direction
+# 1. bovard validator + topk1: stack LB-best base (1017) with author's topk1 (+75 claim)
+submit "bovard + topk1" \
+  "submissions/konbu17_bovard_topk1.tar.gz" \
+  "phase-γ-bovard-topk1 (LB1017 base + topk1 wrapper, expect ~1100)"
 
-submit "konbu17 + topk1" "submissions/konbu17_topk1.tar.gz" "phase-γ-topk1 (konbu17 author +75 LB claim)"
-submit "konbu17 weak-enemy-aggressive" "submissions/konbu17_weak_enemy_aggressive.tar.gz" "phase-γ-bowwow-patch (our weak-enemy + long-travel + ahead-attack)"
-submit "konbu17 t=0.35" "submissions/konbu17_t035.tar.gz" "phase-γ-thresh-0.35"
-submit "orbitbotnext" "experiments/orbitbotnext/main.py" "phase-α'' orbitbotnext (pascalledesma, 4P 25%)"
-submit "konbu17 t=0.45" "submissions/konbu17_t045.tar.gz" "phase-γ-thresh-0.45"
+# 2. all-in: bovard validator + bowwow patch + topk1
+submit "bovard + bowwow + topk1" \
+  "submissions/konbu17_bovard_topk1_bowwow.tar.gz" \
+  "phase-γ-all-in (bovard+bowwow patch+topk1, expect 1050-1150)"
+
+# 3. bovard validator + bowwow patch (no topk1)
+submit "bovard + bowwow patch" \
+  "submissions/konbu17_bovard_bowwow.tar.gz" \
+  "phase-γ-bovard-bowwow (bovard validator + WEAK_ENEMY/LONG_TRAVEL/ELIM patches)"
+
+# 4. original konbu17 validator + topk1 (author's pure recipe)
+submit "konbu17 (orig) + topk1" \
+  "submissions/konbu17_topk1.tar.gz" \
+  "phase-γ-topk1-pure (konbu17 author's pure +75 LB recipe)"
+
+# 5. original konbu17 validator + bowwow patch
+submit "konbu17 (orig) + bowwow" \
+  "submissions/konbu17_weak_enemy_aggressive.tar.gz" \
+  "phase-γ-bowwow-pure (konbu17 + our bowwow/Vadasz patches)"
 
 echo ""
 echo "=== Day 2 submissions complete (5/5 daily) ==="
