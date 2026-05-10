@@ -22,8 +22,9 @@ LAUNCH_CLEARANCE = 0.1
 
 EARLY_TURN_LIMIT = 40
 OPENING_TURN_LIMIT = 80
-LATE_REMAINING_TURNS = 60
+LATE_REMAINING_TURNS = 70  # was 60 — enter late-game earlier
 VERY_LATE_REMAINING_TURNS = 25
+TOTAL_WAR_REMAINING_TURNS = 55  # was 38 — endgame push starts sooner
 
 SAFE_NEUTRAL_MARGIN = 2
 CONTESTED_NEUTRAL_MARGIN = 2
@@ -34,23 +35,23 @@ SAFE_OPENING_TURN_LIMIT = 10
 ROTATING_OPENING_MAX_TURNS = 13
 ROTATING_OPENING_LOW_PROD = 2
 FOUR_PLAYER_ROTATING_REACTION_GAP = 3
-FOUR_PLAYER_ROTATING_SEND_RATIO = 0.62
+FOUR_PLAYER_ROTATING_SEND_RATIO = 0.55  # was 0.62 — less overcommit in 4P
 FOUR_PLAYER_ROTATING_TURN_LIMIT = 10
 
 COMET_MAX_CHASE_TURNS = 10
 
-ATTACK_COST_TURN_WEIGHT = 0.55
-SNIPE_COST_TURN_WEIGHT = 0.45
+ATTACK_COST_TURN_WEIGHT = 0.50
+SNIPE_COST_TURN_WEIGHT = 0.42
 INDIRECT_VALUE_SCALE = 0.15
 INDIRECT_FRIENDLY_WEIGHT = 0.35
 INDIRECT_NEUTRAL_WEIGHT = 0.9
 INDIRECT_ENEMY_WEIGHT = 1.25
 
 STATIC_NEUTRAL_VALUE_MULT = 1.4
-STATIC_HOSTILE_VALUE_MULT = 1.55
+STATIC_HOSTILE_VALUE_MULT = 1.65
 ROTATING_OPENING_VALUE_MULT = 0.9
-HOSTILE_TARGET_VALUE_MULT = 1.85
-OPENING_HOSTILE_TARGET_VALUE_MULT = 1.45
+HOSTILE_TARGET_VALUE_MULT = 2.05  # was 1.95
+OPENING_HOSTILE_TARGET_VALUE_MULT = 1.55
 SAFE_NEUTRAL_VALUE_MULT = 1.2
 CONTESTED_NEUTRAL_VALUE_MULT = 0.7
 EARLY_NEUTRAL_VALUE_MULT = 1.2
@@ -59,8 +60,16 @@ SNIPE_VALUE_MULT = 1.12
 SWARM_VALUE_MULT = 1.05
 REINFORCE_VALUE_MULT = 1.35
 CRASH_EXPLOIT_VALUE_MULT = 1.18
-FINISHING_HOSTILE_VALUE_MULT = 1.15
+FINISHING_HOSTILE_VALUE_MULT = 1.3  # was 1.2
 BEHIND_ROTATING_NEUTRAL_VALUE_MULT = 0.92
+EXPOSED_PLANET_VALUE_MULT = 2.0  # was 1.75
+
+# NEW: weakest enemy targeting multipliers
+WEAKEST_ENEMY_VALUE_MULT_4P = 1.5  # bonus for targeting weakest in 4P
+WEAKEST_ENEMY_VALUE_MULT_2P = 1.25  # bonus for targeting weakest in 1v1
+GANG_UP_VALUE_MULT = 1.4  # bonus for gang-up attacks on weakened planets
+GANG_UP_POST_BATTLE_DELAY = 2  # turns after battle to arrive
+GANG_UP_ETA_WINDOW = 4  # tolerance window for gang-up timing
 
 NEUTRAL_MARGIN_BASE = 2
 NEUTRAL_MARGIN_PROD_WEIGHT = 2
@@ -70,7 +79,7 @@ HOSTILE_MARGIN_PROD_WEIGHT = 2
 HOSTILE_MARGIN_CAP = 12
 STATIC_TARGET_MARGIN = 4
 CONTESTED_TARGET_MARGIN = 5
-FOUR_PLAYER_TARGET_MARGIN = 3
+FOUR_PLAYER_TARGET_MARGIN = 2  # was 3 — more efficient in 4P
 LONG_TRAVEL_MARGIN_START = 18
 LONG_TRAVEL_MARGIN_DIVISOR = 3
 LONG_TRAVEL_MARGIN_CAP = 8
@@ -118,7 +127,7 @@ REAR_SOURCE_MIN_SHIPS = 16
 REAR_DISTANCE_RATIO = 1.25
 REAR_STAGE_PROGRESS = 0.78
 REAR_SEND_RATIO_TWO_PLAYER = 0.62
-REAR_SEND_RATIO_FOUR_PLAYER = 0.7
+REAR_SEND_RATIO_FOUR_PLAYER = 0.60  # was 0.7 — less overcommit in 4P
 REAR_SEND_MIN_SHIPS = 10
 REAR_MAX_TRAVEL_TURNS = 40
 
@@ -133,30 +142,30 @@ THREE_SOURCE_ETA_TOLERANCE = 1
 THREE_SOURCE_PLAN_PENALTY = 0.93
 
 PROACTIVE_DEFENSE_HORIZON = 12
-PROACTIVE_DEFENSE_RATIO = 0.18
+PROACTIVE_DEFENSE_RATIO = 0.28  # was 0.20 — more defensive
 MULTI_ENEMY_PROACTIVE_HORIZON = 14
-MULTI_ENEMY_PROACTIVE_RATIO = 0.22
-MULTI_ENEMY_STACK_WINDOW = 3
+MULTI_ENEMY_PROACTIVE_RATIO = 0.35  # was 0.24 — much more defensive in 4P
+MULTI_ENEMY_STACK_WINDOW = 4  # was 3 — wider detection window
 REACTION_SOURCE_TOP_K_MY = 4
 REACTION_SOURCE_TOP_K_ENEMY = 4
 PROACTIVE_ENEMY_TOP_K = 3
 
 CRASH_EXPLOIT_ENABLED = True
-CRASH_EXPLOIT_MIN_TOTAL_SHIPS = 10
-CRASH_EXPLOIT_ETA_WINDOW = 2
+CRASH_EXPLOIT_MIN_TOTAL_SHIPS = 7  # was 10 — exploit smaller crashes too
+CRASH_EXPLOIT_ETA_WINDOW = 3  # was 2 — wider window
 CRASH_EXPLOIT_POST_CRASH_DELAY = 1
 
-LATE_IMMEDIATE_SHIP_VALUE = 0.6
-WEAK_ENEMY_THRESHOLD = 45
-ELIMINATION_BONUS = 18.0
+LATE_IMMEDIATE_SHIP_VALUE = 0.75
+WEAK_ENEMY_THRESHOLD = 110  # was 60 — detect weak enemies earlier
+ELIMINATION_BONUS = 55.0  # was 28.0 — much stronger elimination drive
 
 BEHIND_DOMINATION = -0.20
-AHEAD_DOMINATION = 0.18
-FINISHING_DOMINATION = 0.35
-FINISHING_PROD_RATIO = 1.25
-AHEAD_ATTACK_MARGIN_BONUS = 0.08
+AHEAD_DOMINATION = 0.15
+FINISHING_DOMINATION = 0.28
+FINISHING_PROD_RATIO = 1.15
+AHEAD_ATTACK_MARGIN_BONUS = 0.12
 BEHIND_ATTACK_MARGIN_PENALTY = 0.05
-FINISHING_ATTACK_MARGIN_BONUS = 0.08
+FINISHING_ATTACK_MARGIN_BONUS = 0.12
 
 DOOMED_EVAC_TURN_LIMIT = 24
 DOOMED_MIN_SHIPS = 8
@@ -165,7 +174,6 @@ SOFT_ACT_DEADLINE = 0.82
 HEAVY_PHASE_MIN_TIME = 0.16
 OPTIONAL_PHASE_MIN_TIME = 0.08
 HEAVY_ROUTE_PLANET_LIMIT = 32
-
 
 # ============================================================
 # Shared Types
@@ -254,8 +262,6 @@ def actual_path_geometry(sx, sy, sr, tx, ty, tr):
 
 
 def safe_angle_and_distance(sx, sy, sr, tx, ty, tr):
-    # Launch from the source boundary and time the route to the first hit on
-    # the target circle.
     angle, start_x, start_y, end_x, end_y, hit_distance = actual_path_geometry(
         sx,
         sy,
@@ -316,8 +322,6 @@ def comet_remaining_life(planet_id, comets):
 
 
 def estimate_arrival(sx, sy, sr, tx, ty, tr, ships):
-    # Use one boundary-aware ETA model for routing, ranking, reserve, and
-    # launch decisions.
     safe = safe_angle_and_distance(sx, sy, sr, tx, ty, tr)
     if safe is None:
         return None
@@ -350,8 +354,6 @@ def target_can_move(target, initial_by_id, comet_ids):
 
 
 def search_safe_intercept(src, target, ships, initial_by_id, ang_vel, comets, comet_ids):
-    # If the direct line is unsafe, scan future positions and keep the earliest
-    # viable intercept window.
     best = None
     best_score = None
     max_turns = min(HORIZON, ROUTE_SEARCH_HORIZON)
@@ -413,8 +415,6 @@ def search_safe_intercept(src, target, ships, initial_by_id, ang_vel, comets, co
 
 
 def aim_with_prediction(src, target, ships, initial_by_id, ang_vel, comets, comet_ids):
-    # Iterate toward a self-consistent moving-target intercept, then fall back
-    # to a later safe window if needed.
     est = estimate_arrival(src.x, src.y, src.radius, target.x, target.y, target.radius, ships)
     if est is None:
         if not target_can_move(target, initial_by_id, comet_ids):
@@ -478,8 +478,6 @@ def aim_with_prediction(src, target, ships, initial_by_id, ang_vel, comets, come
 
 
 def fleet_target_planet(fleet, planets):
-    # Project in-flight fleets by ray-circle hit timing to build a usable
-    # arrival ledger.
     best_planet = None
     best_time = 1e9
     dir_x = math.cos(fleet.angle)
@@ -518,8 +516,6 @@ def build_arrival_ledger(fleets, planets):
 
 
 def resolve_arrival_event(owner, garrison, arrivals):
-    # Match the environment's same-turn combat order: aggregate by owner, let
-    # the top two attackers cancel, then resolve the survivor against garrison.
     by_owner = {}
     for _, attacker_owner, ships in arrivals:
         by_owner[attacker_owner] = by_owner.get(attacker_owner, 0) + ships
@@ -568,8 +564,6 @@ def normalize_arrivals(arrivals, horizon):
 
 
 def simulate_planet_timeline(planet, arrivals, player, horizon):
-    # Build one reusable future timeline so defense, capture, and evacuation
-    # all query the same state model.
     horizon = max(0, int(math.ceil(horizon)))
     events = normalize_arrivals(arrivals, horizon)
     by_turn = defaultdict(list)
@@ -690,6 +684,30 @@ def indirect_features(planet, planets, player):
     return friendly, neutral, enemy
 
 
+def detect_exposed_enemy_planets(fleets, enemy_planets):
+    exposed = set()
+    for planet in enemy_planets:
+        outbound = sum(
+            int(f.ships)
+            for f in fleets
+            if f.owner == planet.owner and f.from_planet_id == planet.id and f.ships >= 5
+        )
+        if outbound >= 12 and outbound >= planet.ships * 0.8:  # lowered threshold
+            exposed.add(planet.id)
+    return exposed
+
+
+def _compute_weakest_enemy(enemy_planets, owner_strength, owner_production):
+    """Return the player ID of the weakest enemy (lowest ships + future production)."""
+    enemy_owners = set(p.owner for p in enemy_planets)
+    if not enemy_owners:
+        return None
+    return min(
+        enemy_owners,
+        key=lambda owner: owner_strength.get(owner, 0) + owner_production.get(owner, 0) * 15,
+    )
+
+
 class WorldModel:
     def __init__(self, player, step, planets, fleets, initial_by_id, ang_vel, comets, comet_ids):
         self.player = player
@@ -715,6 +733,7 @@ class WorldModel:
         self.is_opening = step < OPENING_TURN_LIMIT
         self.is_late = self.remaining_steps < LATE_REMAINING_TURNS
         self.is_very_late = self.remaining_steps < VERY_LATE_REMAINING_TURNS
+        self.is_total_war = self.remaining_steps < TOTAL_WAR_REMAINING_TURNS
         self.is_four_player = self.num_players >= 4
 
         self.owner_strength = defaultdict(int)
@@ -737,6 +756,16 @@ class WorldModel:
         self.my_prod = self.owner_production.get(player, 0)
         self.enemy_prod = sum(
             production for owner, production in self.owner_production.items() if owner != player
+        )
+
+        # Weakest enemy tracking (key for 4P elimination strategy)
+        self._weakest_enemy = _compute_weakest_enemy(
+            self.enemy_planets, self.owner_strength, self.owner_production
+        )
+        self._weakest_enemy_strength = (
+            self.owner_strength.get(self._weakest_enemy, 0)
+            if self._weakest_enemy is not None
+            else 0
         )
 
         self.arrivals_by_planet = build_arrival_ledger(fleets, planets)
@@ -767,6 +796,7 @@ class WorldModel:
         self.indirect_feature_map = {
             planet.id: indirect_features(planet, planets, player) for planet in planets
         }
+        self.exposed_planet_ids = detect_exposed_enemy_planets(fleets, self.enemy_planets)
         self.shot_cache = {}
         self.probe_candidate_cache = {}
         self.best_probe_cache = {}
@@ -790,9 +820,8 @@ class WorldModel:
     def plan_shot(self, src_id, target_id, ships):
         ships = int(ships)
         key = (src_id, target_id, ships)
-        cached = self.shot_cache.get(key)
         if key in self.shot_cache:
-            return cached
+            return self.shot_cache[key]
         src = self.planet_by_id[src_id]
         target = self.planet_by_id[target_id]
         result = aim_with_prediction(
@@ -808,14 +837,10 @@ class WorldModel:
         return result
 
     def probe_ship_candidates(self, src_id, target_id, source_cap, hints=()):
-        cache = getattr(self, "probe_candidate_cache", None)
-        if cache is None:
-            cache = {}
-            self.probe_candidate_cache = cache
         source_cap = max(1, int(source_cap))
         normalized_hints = tuple(int(math.ceil(hint)) for hint in hints if hint is not None)
         cache_key = (src_id, target_id, source_cap, normalized_hints)
-        cached = cache.get(cache_key)
+        cached = self.probe_candidate_cache.get(cache_key)
         if cached is not None:
             return cached
         target = self.planet_by_id[target_id]
@@ -843,7 +868,7 @@ class WorldModel:
                     values.add(candidate)
 
         result = sorted(values)
-        cache[cache_key] = result
+        self.probe_candidate_cache[cache_key] = result
         return result
 
     def best_probe_aim(
@@ -867,12 +892,8 @@ class WorldModel:
             anchor_turn,
             max_anchor_diff,
         )
-        cache = getattr(self, "best_probe_cache", None)
-        if cache is None:
-            cache = {}
-            self.best_probe_cache = cache
-        if cache_key in cache:
-            return cache[cache_key]
+        if cache_key in self.best_probe_cache:
+            return self.best_probe_cache[cache_key]
 
         best = None
         best_key = None
@@ -903,7 +924,7 @@ class WorldModel:
                 best_key = key
                 best = (ships, (angle, turns, dist_to_target, path_target))
 
-        cache[cache_key] = best
+        self.best_probe_cache[cache_key] = best
         return best
 
     def reaction_times(self, target_id):
@@ -1004,11 +1025,7 @@ class WorldModel:
             return self._ownership_search_cap(eval_turn) + 1
 
         normalized_extra = tuple(
-            (
-                max(1, int(math.ceil(turns))),
-                owner,
-                int(ships),
-            )
+            (max(1, int(math.ceil(turns))), owner, int(ships))
             for turns, owner, ships in extra_arrivals
             if ships > 0 and max(1, int(math.ceil(turns))) <= eval_turn
         )
@@ -1209,11 +1226,7 @@ def candidate_time_valid(target, turns, world, remaining_buffer):
 def stacked_enemy_proactive_keep(planet, world):
     threats = []
     for enemy in world.enemy_planets:
-        seeded = world.best_probe_aim(
-            enemy.id,
-            planet.id,
-            max(1, int(enemy.ships)),
-        )
+        seeded = world.best_probe_aim(enemy.id, planet.id, max(1, int(enemy.ships)))
         if seeded is None:
             continue
         _, aim = seeded
@@ -1277,6 +1290,50 @@ def detect_enemy_crashes(world):
     return crashes
 
 
+def detect_enemy_planet_battles(world):
+    """
+    Detect where an enemy fleet is attacking another enemy's owned planet.
+    These create attack windows — the winning side will be weakened.
+    Returns list of dicts with target_id, battle_turn, estimated post_battle_ships.
+    """
+    battles = []
+    for target in world.enemy_planets:
+        attacking_fleets = [
+            (int(math.ceil(eta)), owner, int(ships))
+            for eta, owner, ships in world.arrivals_by_planet.get(target.id, [])
+            if owner not in (-1, world.player) and owner != target.owner and ships > 0
+        ]
+        if not attacking_fleets:
+            continue
+
+        for eta, attacker_owner, attacker_ships in attacking_fleets:
+            # Rough post-battle estimate (production growth + garrison vs attacker)
+            garrison_at_eta = target.ships + target.production * eta
+            surviving_attacker = max(0, attacker_ships - garrison_at_eta)
+            surviving_defender = max(0, garrison_at_eta - attacker_ships)
+
+            if attacker_ships > garrison_at_eta:
+                post_owner = attacker_owner
+                post_ships = surviving_attacker
+            else:
+                post_owner = target.owner
+                post_ships = surviving_defender
+
+            # Only interesting if planet will be weak after battle
+            if post_ships < 25:
+                battles.append(
+                    {
+                        "target_id": target.id,
+                        "battle_turn": eta,
+                        "post_owner": post_owner,
+                        "post_ships": post_ships,
+                        "original_owner": target.owner,
+                    }
+                )
+
+    return battles
+
+
 def build_policy_state(world, deadline=None):
     def expired():
         return deadline is not None and time.perf_counter() > deadline
@@ -1320,11 +1377,12 @@ def build_policy_state(world, deadline=None):
             enemy_eta = enemy_aim[1]
             if enemy_eta > PROACTIVE_DEFENSE_HORIZON:
                 continue
-            proactive_keep = max(
-                proactive_keep,
-                int(enemy.ships * PROACTIVE_DEFENSE_RATIO),
-            )
+            proactive_keep = max(proactive_keep, int(enemy.ships * PROACTIVE_DEFENSE_RATIO))
         proactive_keep = max(proactive_keep, stacked_enemy_proactive_keep(planet, world))
+
+        if world.is_total_war:
+            exact_keep = min(exact_keep, max(1, exact_keep // 2))
+            proactive_keep = min(proactive_keep, max(1, proactive_keep // 2))
 
         reserve[planet.id] = min(int(planet.ships), max(exact_keep, proactive_keep))
         attack_budget[planet.id] = max(0, int(planet.ships) - reserve[planet.id])
@@ -1347,7 +1405,7 @@ def build_modes(world):
     is_finishing = (
         domination > FINISHING_DOMINATION
         and world.my_prod > world.enemy_prod * FINISHING_PROD_RATIO
-        and world.step > 100
+        and world.step > 80
     )
 
     attack_margin_mult = 1.0
@@ -1458,12 +1516,25 @@ def target_value(target, arrival_turns, mission, world, modes, policy):
     elif mission == "crash_exploit":
         value *= CRASH_EXPLOIT_VALUE_MULT
 
+    if target.id in world.exposed_planet_ids:
+        value *= EXPOSED_PLANET_VALUE_MULT
+
     if world.is_late:
         value += max(0, target.ships) * LATE_IMMEDIATE_SHIP_VALUE
-        if target.owner not in (-1, world.player):
-            enemy_strength = world.owner_strength.get(target.owner, 0)
-            if enemy_strength <= WEAK_ENEMY_THRESHOLD:
-                value += ELIMINATION_BONUS
+
+    # Elimination bonus — applies whenever enemy is weak (not just late game)
+    if target.owner not in (-1, world.player):
+        enemy_strength = world.owner_strength.get(target.owner, 0)
+        if enemy_strength <= WEAK_ENEMY_THRESHOLD:
+            value += ELIMINATION_BONUS
+
+    # Weakest enemy targeting bonus (key for 4P strategy)
+    if target.owner not in (-1, world.player) and world._weakest_enemy is not None:
+        if target.owner == world._weakest_enemy:
+            mult = (
+                WEAKEST_ENEMY_VALUE_MULT_4P if world.is_four_player else WEAKEST_ENEMY_VALUE_MULT_2P
+            )
+            value *= mult
 
     if modes["is_finishing"] and target.owner not in (-1, world.player):
         value *= FINISHING_HOSTILE_VALUE_MULT
@@ -1514,6 +1585,11 @@ def preferred_send(target, base_needed, arrival_turns, src_available, world, mod
         margin = max(0, margin - COMET_MARGIN_RELIEF)
     if modes["is_finishing"] and target.owner not in (-1, world.player):
         margin += FINISHING_HOSTILE_SEND_BONUS
+    if target.id in world.exposed_planet_ids:
+        margin = max(0, margin - 2)
+    # In 4P, be more efficient when targeting weakest enemy (finishing blow)
+    if world.is_four_player and world._weakest_enemy and target.owner == world._weakest_enemy:
+        margin = max(0, margin - 2)
     return min(src_available, send + margin)
 
 
@@ -1537,6 +1613,11 @@ def apply_score_modifiers(base_score, target, mission, world):
         score *= SWARM_SCORE_MULT
     elif mission == "crash_exploit":
         score *= CRASH_EXPLOIT_SCORE_MULT
+    if target.id in world.exposed_planet_ids:
+        score *= 1.25
+    # Bonus score for targeting weakest enemy planet
+    if target.owner not in (-1, world.player) and world._weakest_enemy == target.owner:
+        score *= 1.2
     return score
 
 
@@ -1622,12 +1703,7 @@ def settle_plan(
         return result
 
     initial_candidates = sorted(
-        world.probe_ship_candidates(
-            src.id,
-            target.id,
-            src_cap,
-            hints=(seed_hint,),
-        ),
+        world.probe_ship_candidates(src.id, target.id, src_cap, hints=(seed_hint,)),
         key=lambda send: (abs(send - seed_hint), send),
     )
 
@@ -1757,12 +1833,7 @@ def settle_reinforce_plan(
         return result
 
     initial_candidates = sorted(
-        world.probe_ship_candidates(
-            src.id,
-            target.id,
-            src_cap,
-            hints=(seed_hint,),
-        ),
+        world.probe_ship_candidates(src.id, target.id, src_cap, hints=(seed_hint,)),
         key=lambda send: (abs(send - seed_hint), send),
     )
 
@@ -2221,6 +2292,216 @@ def build_crash_exploit_missions(world, policy, planned_commitments, modes):
     return missions
 
 
+def build_gang_up_missions(world, policy, planned_commitments, modes):
+    """
+    Attack enemy planets that will be weakened by inter-enemy combat.
+    Schedule our fleet to arrive shortly after the battle resolves.
+    This is the key 4P tactic: use enemies fighting each other to our advantage.
+    """
+    missions = []
+
+    for battle in detect_enemy_planet_battles(world):
+        target = world.planet_by_id[battle["target_id"]]
+        if target.owner == world.player:
+            continue
+
+        # Arrive a couple turns after the battle to clean up
+        desired_arrival = battle["battle_turn"] + GANG_UP_POST_BATTLE_DELAY
+
+        for src in world.my_planets:
+            src_available = policy["attack_budget"].get(src.id, 0)
+            if src_available < PARTIAL_SOURCE_MIN_SHIPS:
+                continue
+
+            # Hint: need just slightly more than estimated post-battle ships
+            post_hint = max(3, int(battle["post_ships"]) + 3)
+            seeded = world.best_probe_aim(
+                src.id,
+                target.id,
+                src_available,
+                hints=(post_hint, int(target.ships) + 1),
+                anchor_turn=desired_arrival,
+                max_anchor_diff=GANG_UP_ETA_WINDOW,
+            )
+            if seeded is None:
+                continue
+            probe, _ = seeded
+
+            plan = settle_plan(
+                src,
+                target,
+                src_available,
+                probe,
+                world,
+                planned_commitments,
+                modes,
+                policy,
+                mission="capture",
+                eval_turn_fn=lambda turns, da=desired_arrival: max(turns, da),
+                anchor_turn=desired_arrival,
+                anchor_tolerance=GANG_UP_ETA_WINDOW,
+            )
+            if plan is None:
+                continue
+
+            angle, turns, _, need, send_pref = plan
+            if not candidate_time_valid(target, turns, world, LATE_CAPTURE_BUFFER):
+                continue
+
+            value = target_value(target, turns, "capture", world, modes, policy)
+            value *= GANG_UP_VALUE_MULT  # extra bonus for exploiting enemy fight
+            if value <= 0:
+                continue
+
+            score = apply_score_modifiers(
+                value / (send_pref + turns * ATTACK_COST_TURN_WEIGHT + 1.0),
+                target,
+                "capture",
+                world,
+            )
+
+            option = ShotOption(
+                score=score,
+                src_id=src.id,
+                target_id=target.id,
+                angle=angle,
+                turns=turns,
+                needed=need,
+                send_cap=send_pref,
+                mission="capture",
+                anchor_turn=desired_arrival,
+            )
+            missions.append(
+                Mission(
+                    kind="single",
+                    score=score,
+                    target_id=target.id,
+                    turns=turns,
+                    options=[option],
+                )
+            )
+
+    return missions
+
+
+def build_elimination_missions(world, policy, planned_commitments, modes):
+    """
+    Dedicated missions to eliminate the weakest enemy entirely.
+    High priority in 4P — removing a player is a massive advantage.
+    Only activates when we have a clear strength advantage over the target.
+    """
+    if world._weakest_enemy is None:
+        return []
+
+    weakest = world._weakest_enemy
+    weakest_total = world._weakest_enemy_strength
+
+    # Only pursue if we're meaningfully stronger than the target
+    if weakest_total > world.my_total * 0.9:
+        return []
+
+    # Must be clearly the weakest (not just slightly weaker than someone else)
+    other_enemies = [
+        s for owner, s in world.owner_strength.items() if owner not in (world.player, weakest)
+    ]
+    if other_enemies and weakest_total > min(other_enemies) * 0.95:
+        return []
+
+    weakest_planets = [p for p in world.enemy_planets if p.owner == weakest]
+    if not weakest_planets:
+        return []
+
+    missions = []
+    elimination_bonus_mult = 1.5 if world.is_four_player else 1.25
+
+    for target in weakest_planets:
+        for src in world.my_planets:
+            src_available = policy["attack_budget"].get(src.id, 0)
+            if src_available < PARTIAL_SOURCE_MIN_SHIPS:
+                continue
+
+            seeded = world.best_probe_aim(
+                src.id,
+                target.id,
+                src_available,
+                hints=(int(target.ships) + 1, int(target.ships) + 5),
+            )
+            if seeded is None:
+                continue
+            probe, rough_aim = seeded
+            rough_turns = rough_aim[1]
+
+            if not candidate_time_valid(target, rough_turns, world, LATE_CAPTURE_BUFFER):
+                continue
+
+            global_needed = world.min_ships_to_own_at(
+                target.id,
+                rough_turns,
+                world.player,
+                planned_commitments=planned_commitments,
+            )
+            if global_needed <= 0 or global_needed > src_available:
+                continue
+
+            send_guess = preferred_send(
+                target, global_needed, rough_turns, src_available, world, modes, policy
+            )
+            plan = settle_plan(
+                src,
+                target,
+                src_available,
+                send_guess,
+                world,
+                planned_commitments,
+                modes,
+                policy,
+                mission="capture",
+            )
+            if plan is None:
+                continue
+
+            angle, turns, _, need, send_pref = plan
+            if not candidate_time_valid(target, turns, world, LATE_CAPTURE_BUFFER):
+                continue
+            if send_pref < need:
+                continue
+
+            value = target_value(target, turns, "capture", world, modes, policy)
+            if value <= 0:
+                continue
+
+            score = apply_score_modifiers(
+                value
+                * elimination_bonus_mult
+                / (send_pref + turns * ATTACK_COST_TURN_WEIGHT + 1.0),
+                target,
+                "capture",
+                world,
+            )
+
+            option = ShotOption(
+                score=score,
+                src_id=src.id,
+                target_id=target.id,
+                angle=angle,
+                turns=turns,
+                needed=need,
+                send_cap=send_pref,
+                mission="capture",
+            )
+            missions.append(
+                Mission(
+                    kind="single",
+                    score=score,
+                    target_id=target.id,
+                    turns=turns,
+                    options=[option],
+                )
+            )
+
+    return missions
+
+
 def plan_moves(world, deadline=None):
     def expired():
         return deadline is not None and time.perf_counter() > deadline
@@ -2300,21 +2581,26 @@ def plan_moves(world, deadline=None):
             return False
         return True
 
+    # === MISSION BUILDING PHASE ===
+
     if allow_heavy_phase():
         missions.extend(
             build_reinforce_missions(
-                world,
-                policy,
-                planned_commitments,
-                modes,
-                source_inventory_left,
+                world, policy, planned_commitments, modes, source_inventory_left
             )
         )
+
     missions.extend(build_rescue_missions(world, policy, planned_commitments, modes))
     missions.extend(build_recapture_missions(world, policy, planned_commitments, modes))
 
-    # Only build candidates after solving an intercept so timing decisions come
-    # from a real route.
+    # Elimination missions — high priority in 4P
+    if allow_heavy_phase():
+        missions.extend(build_elimination_missions(world, policy, planned_commitments, modes))
+
+    # Gang-up missions — exploit inter-enemy fights (very useful in 4P)
+    if allow_heavy_phase():
+        missions.extend(build_gang_up_missions(world, policy, planned_commitments, modes))
+
     for src in world.my_planets:
         if expired():
             return finalize_moves()
@@ -2361,13 +2647,7 @@ def plan_moves(world, deadline=None):
             partial_send_cap = min(
                 src_available,
                 preferred_send(
-                    target,
-                    global_needed,
-                    rough_turns,
-                    src_available,
-                    world,
-                    modes,
-                    policy,
+                    target, global_needed, rough_turns, src_available, world, modes, policy
                 ),
             )
             if partial_send_cap >= PARTIAL_SOURCE_MIN_SHIPS:
@@ -2472,8 +2752,6 @@ def plan_moves(world, deadline=None):
             if snipe is not None:
                 missions.append(snipe)
 
-    # Allow small synchronized two-source finishes when one source is not
-    # enough on its own.
     for target_id, options in source_options_by_target.items():
         if expired():
             return finalize_moves()
@@ -2593,8 +2871,8 @@ def plan_moves(world, deadline=None):
 
     missions.sort(key=lambda item: -item.score)
 
-    # Update commitments after every accepted launch so later plans see the
-    # timing that is already spoken for.
+    # === MISSION EXECUTION PHASE ===
+
     for mission in missions:
         if expired():
             return finalize_moves()
@@ -2765,8 +3043,8 @@ def plan_moves(world, deadline=None):
             continue
         planned_commitments[target.id].extend(committed)
 
-    # Use leftover attack budget for one more pass after the first commitment
-    # wave is fixed.
+    # === FOLLOWUP PHASE ===
+
     if not world.is_very_late and allow_optional_phase():
         for src in world.my_planets:
             if expired():
@@ -2881,9 +3159,8 @@ def plan_moves(world, deadline=None):
                 continue
             planned_commitments[target.id].append((turns, world.player, int(actual)))
 
-    # If a planet cannot hold soon, prefer reinforcement first. For stacks that
-    # still look doomed after the main mission pass, prefer a last useful
-    # capture; otherwise retreat the stack to a safer ally.
+    # === DOOMED PLANET EVACUATION ===
+
     if expired():
         return finalize_moves()
     live_doomed = compute_live_doomed()
@@ -2992,8 +3269,8 @@ def plan_moves(world, deadline=None):
             angle, _, _, _ = aim
             append_move(planet.id, angle, available_now)
 
-    # Rear planets feed the frontier through staging allies instead of acting
-    # as slow solo attackers.
+    # === REAR FORWARDING ===
+
     if (
         (world.enemy_planets or world.neutral_planets)
         and len(world.my_planets) > 1
@@ -3040,21 +3317,16 @@ def plan_moves(world, deadline=None):
                     < frontier_distance[rear.id] * REAR_STAGE_PROGRESS
                 ]
                 if stage_candidates:
-                    front = min(
-                        stage_candidates,
-                        key=lambda planet: planet_distance(rear, planet),
-                    )
+                    front = min(stage_candidates, key=lambda planet: planet_distance(rear, planet))
                 else:
                     objective = min(
-                        frontier_targets,
-                        key=lambda target: planet_distance(rear, target),
+                        frontier_targets, key=lambda target: planet_distance(rear, target)
                     )
                     remaining_fronts = [planet for planet in safe_fronts if planet.id != rear.id]
                     if not remaining_fronts:
                         continue
                     front = min(
-                        remaining_fronts,
-                        key=lambda planet: planet_distance(planet, objective),
+                        remaining_fronts, key=lambda planet: planet_distance(planet, objective)
                     )
 
                 if front.id == rear.id:
@@ -3073,12 +3345,60 @@ def plan_moves(world, deadline=None):
                     continue
                 append_move(rear.id, angle, send)
 
+    # === TOTAL WAR ENDGAME ===
+
+    if world.is_total_war and world.enemy_planets and allow_optional_phase():
+        # Prioritize weakest enemy in total war
+        if world._weakest_enemy is not None:
+            weakest_planets = [p for p in world.enemy_planets if p.owner == world._weakest_enemy]
+            if weakest_planets:
+                primary_targets = weakest_planets
+            else:
+                primary_targets = world.enemy_planets
+        else:
+            primary_targets = world.enemy_planets
+
+        # Attack weakest enemy first, then others
+        for target_set in [primary_targets, world.enemy_planets]:
+            if not target_set:
+                continue
+            for src in world.my_planets:
+                if expired():
+                    return finalize_moves()
+                atk_left = source_attack_left(src.id)
+                if atk_left < 5:
+                    continue
+
+                # Find best target from current set
+                best_target = None
+                best_dist = float("inf")
+                for ep in target_set:
+                    d = planet_distance(src, ep)
+                    if d < best_dist:
+                        aim_test = world.plan_shot(src.id, ep.id, atk_left)
+                        if aim_test is not None:
+                            best_dist = d
+                            best_target = ep
+
+                if best_target is None:
+                    continue
+                aim = world.plan_shot(src.id, best_target.id, atk_left)
+                if aim is None:
+                    continue
+                angle, turns, _, _ = aim
+                if turns >= world.remaining_steps:
+                    continue
+                append_move(src.id, angle, atk_left)
+            break  # Only run primary targets set; secondary is backup
+
     return finalize_moves()
 
 
 # ============================================================
 # Agent Entry Point
 # ============================================================
+
+_agent_step = 0
 
 
 def _read(obs, key, default=None):
@@ -3087,9 +3407,10 @@ def _read(obs, key, default=None):
     return getattr(obs, key, default)
 
 
-def build_world(obs):
+def build_world(obs, inferred_step=None):
     player = _read(obs, "player", 0)
-    step = _read(obs, "step", 0) or 0
+    obs_step = _read(obs, "step", 0) or 0
+    step = max(obs_step, inferred_step or 0)
     raw_planets = _read(obs, "planets", []) or []
     raw_fleets = _read(obs, "fleets", []) or []
     ang_vel = _read(obs, "angular_velocity", 0.0) or 0.0
@@ -3115,8 +3436,10 @@ def build_world(obs):
 
 
 def agent(obs, config=None):
+    global _agent_step
+    _agent_step += 1
     start_time = time.perf_counter()
-    world = build_world(obs)
+    world = build_world(obs, inferred_step=_agent_step - 1)
     if not world.my_planets:
         return []
     act_timeout = _read(config, "actTimeout", 1.0) if config is not None else 1.0

@@ -124,3 +124,41 @@ exp:
 decode:
 	@if [ -z "$(EP_ID)" ]; then echo "usage: make decode EP_ID=<episode-id>"; exit 1; fi
 	$(UV) run python -m tools.decode_episode --json data/replays/$(EP_ID).json --output outputs/episode_$(EP_ID).csv
+
+# ---------------------------------------------------------------------------
+# Phase 0 — BC dataset / IL training / goldcheck (release gate)
+# ---------------------------------------------------------------------------
+
+# Build BC dataset from bovard top10 replays (top tier filter).
+BC_REPLAY_DIRS ?= data/external/top10_replays/episodes/episodes data/external/bovard_full
+BC_OUT ?= data/processed/bc/
+
+bc-dataset:
+	mkdir -p $(BC_OUT)
+	$(UV) run python -m tools.build_bc_dataset \
+		--replays $(BC_REPLAY_DIRS) \
+		--output $(BC_OUT) \
+		--top-tier-only
+
+# Train IL proxy.
+IL_OUT ?= agents/proxy/il_v1.pt
+IL_EPOCHS ?= 10
+IL_BS ?= 512
+
+il-train:
+	$(UV) run python -m tools.train_il_proxy \
+		--bc-dir $(BC_OUT) \
+		--output $(IL_OUT) \
+		--epochs $(IL_EPOCHS) --batch-size $(IL_BS)
+
+# Gold release gate. Set GOLD_TH=0.70 by default — Top 1-3 (1650+) ready.
+GOLD_AGENT ?= src/orbit_wars/agent.py
+GOLD_PROXY ?= agents/proxy/il_v1.py
+GOLD_EPS   ?= 15
+GOLD_SEEDS ?= 1,2,3,4,5,6,7,8,9,10
+GOLD_TH    ?= 0.70
+
+goldcheck:
+	$(UV) run python -m tools.goldcheck \
+		--agent $(GOLD_AGENT) --proxy $(GOLD_PROXY) \
+		--episodes $(GOLD_EPS) --seeds $(GOLD_SEEDS) --threshold $(GOLD_TH)

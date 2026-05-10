@@ -1,0 +1,21 @@
+{
+  "id": "pilkwang/orbit-wars-structured-baseline",
+  "id_no": 115943977,
+  "title": "\ud83d\udef0\ufe0f Orbit Wars: Structured Baseline",
+  "code_file": "orbit-wars-structured-baseline.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "orbit-wars"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None"
+}

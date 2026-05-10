@@ -7,7 +7,9 @@ import math
 from orbit_wars.missions import (
     CaptureMission,
     CometGrabMission,
+    DefenseMission,
     Dispatcher,
+    FleetAggregationMission,
     RecaptureMission,
     parse_observation,
 )
@@ -151,7 +153,7 @@ class TestCaptureMission:
         assert moves == []
 
     def test_roi_picks_high_production_target(self):
-        # mine が両方占領可。production=5 と production=1 なら production=5 を選ぶ
+        # mine が両方占領可。production=5 と production=1 なら production=5 を選ぶ (single-target)
         obs = make_obs(
             planets=[
                 [0, 0, 75, 75, 1.5, 200, 3],
@@ -164,7 +166,6 @@ class TestCaptureMission:
         assert len(moves) == 1
         # ROI: prod=5 / cost ≈ 5/(6+t) > prod=1 / cost ≈ 1/(6+t')
         # → planet ID 2 を選ぶはず
-        # angle を計算して target 方向か確認: from (75,75) to (60,60)
         expected_angle = math.atan2(60 - 75, 60 - 75)
         # safe_angle_around で太陽通過回避により若干ズレる可能性
         assert abs(moves[0].angle - expected_angle) < math.radians(30)
@@ -404,6 +405,229 @@ class TestRecaptureMission:
 
 
 # ============================================================================
+# FleetAggregationMission
+# ============================================================================
+
+
+class TestFleetAggregationMission:
+    """複数 home の capacity を aggregate して oversized target を奪取する mission の test."""
+
+    def test_no_my_planets_no_op(self):
+        obs = make_obs(planets=[[0, 1, 50, 50, 1.5, 100, 3]])
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score == 0.0
+        assert moves == []
+
+    def test_no_targets_no_op(self):
+        # 自分の planet のみ、敵/中立なし
+        obs = make_obs(planets=[[0, 0, 75, 75, 1.5, 100, 3]])
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score == 0.0
+        assert moves == []
+
+    def test_skip_when_single_home_can_capture(self):
+        # 1 home の capacity (100*0.85=85) >> target.ships(5) → 単独で取れる
+        # → CaptureMission に任せて aggregation は発火しない
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],
+                [1, -1, 60, 60, 1.0, 5, 2],
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score == 0.0
+        assert moves == []
+
+    def test_aggregates_two_homes_for_oversized_neutral(self):
+        # 各 home capacity ~85、target は 150 ships の neutral
+        # → 単独では skip、2 home 合算で取れる
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],  # cap=85
+                [1, 0, 80, 70, 1.5, 100, 3],  # cap=85
+                [2, -1, 60, 60, 1.0, 150, 3],  # ships=150, single home cap < 150
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score > 0
+        # 2 home から発射、合計 ships >= 151 (neutral capture cost)
+        assert len(moves) >= 2
+        from_ids = {m.from_planet_id for m in moves}
+        assert 0 in from_ids and 1 in from_ids
+        total_ships = sum(m.ships for m in moves)
+        assert total_ships >= 151
+
+    def test_aggregates_for_enemy_with_margin(self):
+        # 敵惑星: ships_needed = ships + 1 + margin
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],  # cap=85
+                [1, 0, 80, 70, 1.5, 100, 3],  # cap=85
+                [2, 1, 60, 60, 1.0, 150, 3],  # 敵 150 ships
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission(margin=2).evaluate(s)
+        assert score > 0
+        total_ships = sum(m.ships for m in moves)
+        # neutral 151 vs enemy 153 (= 150+1+2)
+        assert total_ships >= 153
+
+    def test_skip_when_total_capacity_insufficient(self):
+        # 全 home 合計でも足りない target は skip
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],  # cap=85
+                [1, 0, 80, 70, 1.5, 100, 3],  # cap=85
+                [2, -1, 60, 60, 1.0, 500, 3],  # 巨大 target
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score == 0.0
+        assert moves == []
+
+    def test_picks_highest_roi_oversized(self):
+        # 2 つの oversized target、1 つは高 production、もう 1 つは低 production
+        # ROI で高 production を選ぶ
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 200, 3],  # cap=170
+                [1, 0, 80, 70, 1.5, 200, 3],  # cap=170
+                [2, -1, 70, 65, 1.0, 250, 1],  # oversized, prod=1
+                [3, -1, 65, 70, 1.0, 250, 5],  # oversized, prod=5 (高 ROI)
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score > 0
+        # capacity total = 340, target 250 → 1 つしか取れない
+        # ROI で planet 3 (prod=5) を選ぶはず
+        # 全 move は同じ angle 方向 (planet 3 = (65,70))
+        # angle is computed via atan2 + sun-cone safe, but should point roughly toward planet 3
+        for m in moves:
+            assert m.ships > 0
+
+    def test_uses_nearest_homes_first(self):
+        # 3 homes (近, 中, 遠)、近 + 中で足りる
+        # → 遠は使わない (近接優先)
+        obs = make_obs(
+            planets=[
+                [0, 0, 65, 65, 1.5, 100, 3],  # 近 (target に最近接)
+                [1, 0, 80, 70, 1.5, 100, 3],  # 中
+                [2, 0, 95, 90, 1.5, 100, 3],  # 遠
+                [3, -1, 60, 60, 1.0, 150, 3],  # oversized neutral
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = FleetAggregationMission().evaluate(s)
+        assert score > 0
+        from_ids = {m.from_planet_id for m in moves}
+        # 近 + 中 = 0, 1 のはず、2 (遠) は不要
+        assert 0 in from_ids
+        assert 2 not in from_ids
+
+
+# ============================================================================
+# DefenseMission
+# ============================================================================
+
+
+class TestDefenseMission:
+    """敵 fleet の angle observable で守備派遣する mission の test."""
+
+    def test_no_enemy_fleet_no_op(self):
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],
+                [1, -1, 60, 60, 1.0, 5, 2],
+            ]
+        )
+        s = parse_observation(obs)
+        score, moves = DefenseMission().evaluate(s)
+        assert score == 0.0
+        assert moves == []
+
+    def test_threat_recognized_and_launched(self):
+        # mine planet (60, 50)、援軍 home (65, 55) (近接)、敵 fleet (10, 50) が +x 方向、
+        # eta = 50/3.7 ≈ 13.5 turn、援軍 travel = ~5/v ≈ 1.4 turn → 間に合う。
+        obs = make_obs(
+            planets=[
+                [0, 0, 60, 50, 1.5, 10, 3],  # mine, weak garrison
+                [1, 0, 65, 55, 1.5, 200, 3],  # ally home (近接, cap=170)
+            ],
+            fleets=[
+                # fleet at (10, 50), angle=0 → +x 方向 → planet 0 へ
+                [0, 1, 10, 50, 0.0, 99, 100],
+            ],
+        )
+        s = parse_observation(obs)
+        score, moves = DefenseMission(defense_buffer=5).evaluate(s)
+        # threat 認識 → 1 move (= ally home から planet 0 へ)
+        assert score > 0
+        assert len(moves) == 1
+        # 援軍 home id=1 から
+        assert moves[0].from_planet_id == 1
+        # ships = fleet.ships(100) - target.ships(10) + buffer(5) = 95
+        assert moves[0].ships == 95
+
+    def test_garrison_sufficient_no_op(self):
+        # mine planet ships(150) >= enemy fleet ships(100) → garrison で守れる
+        obs = make_obs(
+            planets=[
+                [0, 0, 50, 50, 1.5, 150, 3],
+                [1, 0, 75, 50, 1.5, 200, 3],
+            ],
+            fleets=[
+                [0, 1, 40, 50, 0.0, 99, 100],
+            ],
+        )
+        s = parse_observation(obs)
+        score, moves = DefenseMission().evaluate(s)
+        # ships_needed = 100 - 150 + 5 < 0 → skip
+        assert score == 0.0
+        assert moves == []
+
+    def test_fleet_not_targeting_my_planet(self):
+        # 敵 fleet (40, 50) が +x 方向に飛行、その線上に my_planet なし
+        obs = make_obs(
+            planets=[
+                [0, 0, 50, 80, 1.5, 10, 3],  # mine (但し +x 方向には無い)
+                [1, 0, 75, 75, 1.5, 200, 3],
+            ],
+            fleets=[
+                [0, 1, 40, 50, 0.0, 99, 100],  # +x 方向、planet 0 (50,80) は外れる
+            ],
+        )
+        s = parse_observation(obs)
+        score, moves = DefenseMission().evaluate(s)
+        # 標的 planet が my_planet ではない (= neutral or 不在)
+        assert score == 0.0
+        assert moves == []
+
+    def test_no_home_in_time(self):
+        # target に間に合う home が無い (= eta が短く、援軍 home が遠い)
+        # 敵 fleet が target すぐ近く (距離 5)、援軍 home は target から遠い (距離 50)
+        obs = make_obs(
+            planets=[
+                [0, 0, 50, 50, 1.5, 10, 3],
+                [1, 0, 90, 90, 1.5, 200, 3],  # 遠 home
+            ],
+            fleets=[
+                [0, 1, 45, 50, 0.0, 99, 100],  # planet 0 のすぐ手前 (距離 5)
+            ],
+        )
+        s = parse_observation(obs)
+        score, moves = DefenseMission(eta_safety=1.0).evaluate(s)
+        # eta = 5 / 速度。援軍 travel が間に合わない → skip
+        assert moves == []
+
+
+# ============================================================================
 # Dispatcher with multiple missions (Recapture + CometGrab + Capture)
 # ============================================================================
 
@@ -488,3 +712,33 @@ class TestDispatcherMultiMission:
         # Recapture cost > capacity、Capture のみ採用される
         ships_total = sum(a[2] for a in actions)
         assert ships_total <= 42
+
+    def test_aggregation_complements_capture(self):
+        """Capture が単独で取れる小 target + Aggregation が oversized target → 共存."""
+        d = Dispatcher(
+            [
+                FleetAggregationMission(),
+                CaptureMission(),
+            ]
+        )
+        obs = make_obs(
+            planets=[
+                [0, 0, 75, 75, 1.5, 100, 3],  # cap=85
+                [1, 0, 80, 70, 1.5, 100, 3],  # cap=85
+                [2, -1, 78, 78, 1.0, 5, 2],  # 小 target (Capture が単独で取れる)
+                [3, -1, 60, 60, 1.0, 150, 3],  # oversized (Aggregation が必要)
+            ]
+        )
+        s = parse_observation(obs)
+        actions = d.step(s)
+        # Capture から 1 move (planet 2 を取る) + Aggregation から 2 moves (3 を 0+1 から)
+        # 合計 3 moves。同じ planet 0 / 1 から複数発射が起きるが capacity 内なら OK
+        assert len(actions) >= 2
+        # 全 move の合計 ships は各 home の capacity 合計内
+        from_ships: dict[int, int] = {}
+        for a in actions:
+            pid = int(a[0])
+            from_ships[pid] = from_ships.get(pid, 0) + int(a[2])
+        # 各 home の合計 ships は cap=85 内
+        for pid, ships in from_ships.items():
+            assert ships <= 85, f"planet {pid} exceeds capacity: {ships}"

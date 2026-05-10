@@ -22,6 +22,8 @@ dependencies = [
     # RL training (optional, opt-in via `uv add`):
     #   stable-baselines3, gymnasium, ray[rllib], cleanrl
     "trueskill>=0.4.5",
+    "torch>=2.11.0",
+    "stable-baselines3>=2.8.0",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +47,13 @@ packages = ["src/orbit_wars"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+    # External public-kernel code adopted as-is for fast iteration.
+    # We don't reformat upstream style; keep it grep-friendly with the original.
+    "src/orbit_wars/agent.py",
+    "experiments/*/main.py",
+    "docs/research/public_kernels/**",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

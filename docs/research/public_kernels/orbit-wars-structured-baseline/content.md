@@ -1,3 +1,152 @@
+## [MD]
+# 🛰️ Orbit Wars: Structured Baseline
+### v11: Arrival-Time Ownership, Reinforce-To-Hold, Rescue And Recapture, Swarm Pressure, And Crash Exploits
+
+- Thank you for the community's support. I'm very glad to be of help to you all.
+- To assist with your efficient planet conquer, I just dropped a benchmark notebook. The agent in this notebook turned out to be quite strong in 1:1 combat, but very vulnerable in 1:3 situations😇. How do I know? Check out the [Benchmark](https://www.kaggle.com/code/pilkwang/benchmark-how-strong-is-your-orbit-wars-agent)
+
+
+This notebook follows one decision flow: find a legal direct shot, forecast the target at that arrival time, and spend ships only on missions that still make sense after earlier launches are committed.
+
+That produces a layered agent:
+
+- shared setup defines the mission vocabulary, horizons, and scoring knobs,
+- physics answers whether one direct launch is legal for a realistic fleet size,
+- world model replays arrivals, production, and same-turn combat to predict ownership,
+- strategy allocates ships across reinforce, rescue, recapture, capture, snipe, swarm, crash exploit, salvage, and rear funneling.
+
+Sun-crossing lines are rejected outright, moving targets are revisited only through later legal direct intercepts, and every accepted launch updates the future state before the next mission is judged. A full strategy reference appears in the final section of the notebook.
+
+## [CODE]
+```python
+from IPython.display import HTML, display
+
+display(HTML(r"""
+<div style="max-width: 1480px; margin: 0 auto; padding: 18px 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #243042;">
+  <div style="background: linear-gradient(180deg, #f7f9fc 0%, #eef4fb 100%); border: 1px solid #d9e2ef; border-radius: 30px; padding: 28px 30px 24px 30px; box-shadow: 0 16px 36px rgba(36, 48, 66, 0.08); overflow: hidden;">
+    <div style="font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px;">
+      🛰️ Structured System Map
+    </div>
+    <div style="font-size: 20px; line-height: 1.5; color: #5a6b84; max-width: 1180px; margin-bottom: 10px;">
+      v11 combines arrival-time ownership forecasting, reinforce-to-hold defense, rescue-versus-recapture timing, multi-source swarm pressure, and crash-window opportunism inside one structured baseline.
+    </div>
+    <div style="font-size: 17px; line-height: 1.55; color: #6a7890; max-width: 1180px; margin-bottom: 22px;">
+      Ships are spent only after three things agree: one direct shot is legal, the target still looks good at the true arrival turn, and the mission remains valid after earlier launches are written into the future.
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 18px;">
+      <div style="background: #eef4ff; border: 2px solid #7aa4ff; border-radius: 24px; padding: 18px 20px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #dbe8ff; color: #233246; font-size: 18px; font-weight: 800; margin-bottom: 12px;">1</div>
+        <div style="font-size: 21px; font-weight: 800; color: #233246; margin-bottom: 8px;">🧱 Legal Shot</div>
+        <div style="font-size: 15px; line-height: 1.65; color: #607089;">Probe several realistic fleet sizes, reject sun-crossing segments, and keep only one direct launch that the rules can actually execute.</div>
+      </div>
+      <div style="background: #eefaf6; border: 2px solid #6bc38b; border-radius: 24px; padding: 18px 20px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #d7f1e0; color: #233246; font-size: 18px; font-weight: 800; margin-bottom: 12px;">2</div>
+        <div style="font-size: 21px; font-weight: 800; color: #233246; margin-bottom: 8px;">🛡️ Future State</div>
+        <div style="font-size: 15px; line-height: 1.65; color: #607089;">Replay arrivals, production, and same-turn combat at that ETA so ownership, garrison, and exact need are forecasted instead of guessed.</div>
+      </div>
+      <div style="background: #fff6ec; border: 2px solid #f2af52; border-radius: 24px; padding: 18px 20px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #ffe2bc; color: #233246; font-size: 18px; font-weight: 800; margin-bottom: 12px;">3</div>
+        <div style="font-size: 21px; font-weight: 800; color: #233246; margin-bottom: 8px;">🧯 Hold Logic</div>
+        <div style="font-size: 15px; line-height: 1.65; color: #607089;">Split owned-planet decisions into reinforce-to-hold, rescue, and recapture so defense respects fall timing instead of collapsing into one shortcut.</div>
+      </div>
+      <div style="background: #fff0f6; border: 2px solid #f08cb2; border-radius: 24px; padding: 18px 20px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #ffd6e6; color: #233246; font-size: 18px; font-weight: 800; margin-bottom: 12px;">4</div>
+        <div style="font-size: 21px; font-weight: 800; color: #233246; margin-bottom: 8px;">🚀 Mission Layer</div>
+        <div style="font-size: 15px; line-height: 1.65; color: #607089;">Spend ships on the best forecasted conversion: single capture, snipe, compact swarm, hostile swarm, post-crash exploit, or one more clean follow-up.</div>
+      </div>
+      <div style="background: #f7f3ff; border: 2px solid #b79cf7; border-radius: 24px; padding: 18px 20px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #e7dcff; color: #233246; font-size: 18px; font-weight: 800; margin-bottom: 12px;">5</div>
+        <div style="font-size: 21px; font-weight: 800; color: #233246; margin-bottom: 8px;">🔁 Commit Loop</div>
+        <div style="font-size: 15px; line-height: 1.65; color: #607089;">Re-aim final sends, append ETA-aware commitments, refresh live doomed checks, and use leftover ships for salvage or rear-to-front staging.</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px;">
+      <div style="background: rgba(122, 164, 255, 0.08); border: 1px solid #cddcff; border-radius: 22px; padding: 16px 18px;">
+        <div style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">☀️ Direct Means Direct</div>
+        <div style="font-size: 15px; line-height: 1.6; color: #5f7088;">Sun-crossing lines are discarded. No waypoint route is invented beyond what the game allows.</div>
+      </div>
+      <div style="background: rgba(107, 195, 139, 0.08); border: 1px solid #cbe9d7; border-radius: 22px; padding: 16px 18px;">
+        <div style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">⚔️ Ownership At ETA</div>
+        <div style="font-size: 15px; line-height: 1.6; color: #5f7088;">Same-turn arrivals cancel by owner before the garrison fight, so need and hold logic are always arrival-time questions.</div>
+      </div>
+      <div style="background: rgba(240, 140, 178, 0.08); border: 1px solid #f3cade; border-radius: 22px; padding: 16px 18px;">
+        <div style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">🤝 Partial Sources Matter</div>
+        <div style="font-size: 15px; line-height: 1.6; color: #5f7088;">Small contributors stay alive long enough to assemble two-source and three-source swarms at one synchronized arrival window.</div>
+      </div>
+      <div style="background: rgba(183, 156, 247, 0.08); border: 1px solid #d8c8ff; border-radius: 22px; padding: 16px 18px;">
+        <div style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">🧭 Refresh The Future</div>
+        <div style="font-size: 15px; line-height: 1.6; color: #5f7088;">Every accepted launch rewrites the future. Later missions, salvage, and rear staging all read that updated commitment-aware state.</div>
+      </div>
+    </div>
+  </div>
+</div>
+"""))
+```
+
+## [MD]
+## 🧭 Big Picture
+
+| Step | Focus | Main Question | Output |
+| --- | --- | --- | --- |
+| 1 | 🧱 Feasible Shot | Can any realistic fleet size reach this target with one sun-safe direct launch? | A legal angle and ETA, or a hard no |
+| 2 | 🛡️ Future State | What will the target look like on that ETA after visible arrivals and same-turn combat? | Forecasted owner, garrison, and exact ownership need |
+| 3 | 🧯 Hold Logic | If the planet is or should remain ours, is this a hold, rescue, reinforce, or recapture situation? | Defense missions that respect fall timing instead of collapsing into one heuristic |
+| 4 | 🚀 Pressure Choice | If ships can be spent offensively, which mission converts them best? | Single captures, snipes, swarms, crash exploits, and follow-up pressure |
+| 5 | 🔁 Commitment Update | After one launch is accepted, what changed for every later decision? | Re-aimed final sends, ETA-aware commitments, refreshed doomed checks, and leftover allocation |
+
+Read the notebook in that same order: route feasibility first, arrival-time state second, defense semantics third, pressure missions fourth, and commitment-aware cleanup last.
+
+## [CODE]
+```python
+import subprocess
+import sys
+from importlib.metadata import PackageNotFoundError, version
+
+
+def parse_version(text):
+    parts = []
+    for token in text.split('.'):
+        digits = ''.join(ch for ch in token if ch.isdigit())
+        parts.append(int(digits or 0))
+    return tuple(parts)
+
+
+required_version = (1, 28, 0)
+needs_upgrade = False
+
+try:
+    installed_version = parse_version(version('kaggle-environments'))
+    needs_upgrade = installed_version < required_version
+except PackageNotFoundError:
+    needs_upgrade = True
+
+if needs_upgrade:
+    subprocess.check_call(
+        [sys.executable, '-m', 'pip', 'install', '-q', '--upgrade', 'kaggle-environments>=1.28.0']
+    )
+
+import kaggle_environments  # noqa: F401
+```
+
+## [MD]
+## 🧰 Shared Setup
+
+This section defines the common language used by every later layer.
+
+| Block | What It Holds | Why It Matters |
+| --- | --- | --- |
+| Imports | lightweight standard-library tools | keeps the agent self-contained and easy to audit |
+| Configuration | horizons, margins, weights, mission gates, and safety caps | exposes the policy instead of burying it inside scattered literals |
+| Records | `Planet`, `Fleet`, `ShotOption`, and `Mission` | lets later layers talk in mission and ETA terms rather than raw tuples |
+| Shared helpers | small normalization and ownership utilities | keeps physics, world model, and strategy aligned on the same conventions |
+
+The goal of this setup layer is consistency: every later decision should speak the same vocabulary for timing, ownership, send sizing, and mission type.
+
+## [CODE]
+```python
+%%writefile submission.py
 import math
 import time
 from collections import defaultdict, namedtuple
@@ -171,8 +320,12 @@ HEAVY_ROUTE_PLANET_LIMIT = 32
 # Shared Types
 # ============================================================
 
-Planet = namedtuple("Planet", ["id", "owner", "x", "y", "radius", "ships", "production"])
-Fleet = namedtuple("Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"])
+Planet = namedtuple(
+    "Planet", ["id", "owner", "x", "y", "radius", "ships", "production"]
+)
+Fleet = namedtuple(
+    "Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"]
+)
 
 
 @dataclass(frozen=True)
@@ -195,12 +348,29 @@ class Mission:
     target_id: int
     turns: int
     options: list[ShotOption] = field(default_factory=list)
+```
 
+## [MD]
+## 🧱 Physics
 
+This layer narrows the board to legal direct actions.
+
+| Feature Block | Core Question | What It Contributes |
+| --- | --- | --- |
+| Boundary-aware geometry | Where does the launch really start, and where does travel really end? | Uses source-boundary launches and target-circle hits instead of center-to-center shortcuts |
+| Sun rejection | Is this direct segment legal at all? | Removes any route that crosses the sun before strategy can spend ships on it |
+| Motion prediction | Where will a rotating planet or comet be later? | Keeps moving targets inside the same ETA model as static ones |
+| Direct intercept search | Does a later legal direct window exist? | Searches future target positions without inventing waypoint behavior |
+| Ship-sensitive routing | Does legal reachability change across fleet sizes? | Preserves targets that are reachable only for some realistic ship counts |
+
+Physics does not decide whether a launch is valuable. It only answers whether one direct launch can exist, what angle it needs, and when it arrives. If a line crosses the sun, the route is rejected or revisited only through a later legal direct window on a moving target; no waypoint route is invented.
+
+## [CODE]
+```python
+%%writefile -a submission.py
 # ============================================================
 # Physics
 # ============================================================
-
 
 def dist(ax, ay, bx, by):
     return math.hypot(ax - bx, ay - by)
@@ -470,12 +640,30 @@ def aim_with_prediction(src, target, ships, initial_by_id, ang_vel, comets, come
             comet_ids,
         )
     return final_est[0], final_est[1], tx, ty
+```
 
+## [MD]
+## 🛡️ World Model
 
+This layer turns visible motion into forecastable ownership.
+
+| Feature Block | Core Question | What It Contributes |
+| --- | --- | --- |
+| Arrival ledger | What future arrivals are already visible? | Converts in-flight fleets into a practical event stream |
+| Same-turn combat | How do arrivals resolve when several owners land together? | Makes ownership need, swarm timing, and snipe timing follow the real combat order |
+| State queries | Who owns a planet at turn `T`, and with how many ships? | Lets strategy compare missions against arrival-time reality |
+| Exact ownership need | How many ships are needed to own by a specific turn? | Gives capture, rescue, reinforce, recapture, and snipe one shared ownership contract |
+| Hold queries | Can a friendly planet still hold, and what reinforcement would keep it? | Drives reserve, reinforce-to-hold, rescue, recapture, and salvage |
+| ETA-aware commitments | How does an accepted launch change later forecasts? | Ensures every later mission sees the updated future instead of the original snapshot |
+
+The world model does not rank missions. It supplies forecasts and ownership facts so strategy can compare options without slipping back into current-state heuristics.
+
+## [CODE]
+```python
+%%writefile -a submission.py
 # ============================================================
 # World Model
 # ============================================================
-
 
 def fleet_target_planet(fleet, planets):
     # Project in-flight fleets by ray-circle hit timing to build a usable
@@ -736,7 +924,9 @@ class WorldModel:
         )
         self.my_prod = self.owner_production.get(player, 0)
         self.enemy_prod = sum(
-            production for owner, production in self.owner_production.items() if owner != player
+            production
+            for owner, production in self.owner_production.items()
+            if owner != player
         )
 
         self.arrivals_by_planet = build_arrival_ledger(fleets, planets)
@@ -813,7 +1003,11 @@ class WorldModel:
             cache = {}
             self.probe_candidate_cache = cache
         source_cap = max(1, int(source_cap))
-        normalized_hints = tuple(int(math.ceil(hint)) for hint in hints if hint is not None)
+        normalized_hints = tuple(
+            int(math.ceil(hint))
+            for hint in hints
+            if hint is not None
+        )
         cache_key = (src_id, target_id, source_cap, normalized_hints)
         cached = cache.get(cache_key)
         if cached is not None:
@@ -939,10 +1133,14 @@ class WorldModel:
             return state_at_timeline(self.base_timeline[target_id], cutoff)
 
         arrivals = [
-            item for item in self.arrivals_by_planet.get(target_id, []) if item[0] <= cutoff
+            item
+            for item in self.arrivals_by_planet.get(target_id, [])
+            if item[0] <= cutoff
         ]
         arrivals.extend(
-            item for item in planned_commitments.get(target_id, []) if item[0] <= cutoff
+            item
+            for item in planned_commitments.get(target_id, [])
+            if item[0] <= cutoff
         )
         arrivals.extend(item for item in extra_arrivals if item[0] <= cutoff)
 
@@ -1161,12 +1359,30 @@ class WorldModel:
             planned_commitments=planned_commitments,
             extra_arrivals=extra_arrivals,
         )
+```
 
+## [MD]
+## 🤝 Strategy
 
+This layer turns forecasted facts into ship allocation.
+
+| Feature Block | Core Decision | Strategic Role |
+| --- | --- | --- |
+| Policy state | How much can each planet safely spend, and which targets are fast or contested? | Builds reserve, attack budget, reaction-map tags, and macro mode signals |
+| Defense family | Should an owned planet be reinforced, rescued, or reclaimed later? | Keeps hold-before-fall logic separate from recover-after-fall logic |
+| Capture family | Which single-source conversions are worth ships? | Handles expansion and direct pressure from forecasted need rather than snapshot value |
+| Coordination family | Can partial sources combine into a better attack? | Enables compact swarms, hostile swarms, and crash-window opportunism |
+| Cleanup and logistics | What should leftover or doomed ships do next? | Adds follow-up captures, live doomed salvage, and rear-to-front funneling |
+| Settlement discipline | Does the final committed launch still match route, ETA, and need? | Re-aims final sends and preserves tested legal fallbacks when fleet size changes |
+
+The key execution detail is `settle_plan`: it starts from a tested legal seed, moves toward the desired send, and still keeps a known legal fallback if one intermediate fleet size becomes unreachable. Split launches also stay split, because fleet size changes speed, ETA, and tactical meaning.
+
+## [CODE]
+```python
+%%writefile -a submission.py
 # ============================================================
 # Strategy
 # ============================================================
-
 
 def planet_distance(first, second):
     return math.hypot(first.x - second.x, first.y - second.y)
@@ -1300,9 +1516,7 @@ def build_policy_state(world, deadline=None):
         if target.owner == world.player:
             continue
         my_sources = nearest_sources_to_target(target, world.my_planets, REACTION_SOURCE_TOP_K_MY)
-        enemy_sources = nearest_sources_to_target(
-            target, world.enemy_planets, REACTION_SOURCE_TOP_K_ENEMY
-        )
+        enemy_sources = nearest_sources_to_target(target, world.enemy_planets, REACTION_SOURCE_TOP_K_ENEMY)
         my_t = min_legal_reaction_time(target, my_sources, world)
         enemy_t = min_legal_reaction_time(target, enemy_sources, world)
         reaction_time_map[target.id] = (my_t, enemy_t)
@@ -1412,9 +1626,7 @@ def opening_filter(target, arrival_turns, needed, src_available, world, policy):
             return False
         return True
 
-    return (
-        arrival_turns > ROTATING_OPENING_MAX_TURNS or target.production <= ROTATING_OPENING_LOW_PROD
-    )
+    return arrival_turns > ROTATING_OPENING_MAX_TURNS or target.production <= ROTATING_OPENING_LOW_PROD
 
 
 def target_value(target, arrival_turns, mission, world, modes, policy):
@@ -1434,9 +1646,7 @@ def target_value(target, arrival_turns, mission, world, modes, policy):
         value *= ROTATING_OPENING_VALUE_MULT if world.is_opening else 1.0
 
     if target.owner not in (-1, world.player):
-        value *= (
-            OPENING_HOSTILE_TARGET_VALUE_MULT if world.is_opening else HOSTILE_TARGET_VALUE_MULT
-        )
+        value *= OPENING_HOSTILE_TARGET_VALUE_MULT if world.is_opening else HOSTILE_TARGET_VALUE_MULT
 
     if target.owner == -1:
         if is_safe_neutral(target, policy):
@@ -1480,10 +1690,7 @@ def target_value(target, arrival_turns, mission, world, modes, policy):
 def reinforce_value(target, hold_until, world, policy):
     saved_turns = max(1, world.remaining_steps - hold_until)
     value = target.production * saved_turns + max(0, target.ships) * DEFENSE_SHIP_VALUE
-    if (
-        world.enemy_planets
-        and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22
-    ):
+    if world.enemy_planets and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22:
         value *= DEFENSE_FRONTIER_SCORE_MULT
     value += policy["indirect_wealth_map"][target.id] * saved_turns * INDIRECT_VALUE_SCALE * 0.35
     return value * REINFORCE_VALUE_MULT
@@ -1561,7 +1768,9 @@ def settle_plan(
     seed_hint = max(1, min(src_cap, int(send_guess)))
     eval_turn_fn = eval_turn_fn or (lambda turns: turns)
     anchor_tolerance = (
-        anchor_tolerance if anchor_tolerance is not None else (1 if mission == "snipe" else None)
+        anchor_tolerance
+        if anchor_tolerance is not None
+        else (1 if mission == "snipe" else None)
     )
     tested = {}
     tested_order = []
@@ -1605,9 +1814,7 @@ def settle_plan(
                 src_cap,
                 max(
                     need,
-                    need
-                    + DEFENSE_SEND_MARGIN_BASE
-                    + target.production * DEFENSE_SEND_MARGIN_PROD_WEIGHT,
+                    need + DEFENSE_SEND_MARGIN_BASE + target.production * DEFENSE_SEND_MARGIN_PROD_WEIGHT,
                 ),
             )
         else:
@@ -1674,7 +1881,9 @@ def settle_plan(
     candidate_sends = sorted(
         [send for send in tested_order if tested.get(send) is not None],
         key=lambda send: (
-            0 if mission != "snipe" or anchor_turn is None else abs(tested[send][1] - anchor_turn),
+            0
+            if mission != "snipe" or anchor_turn is None
+            else abs(tested[send][1] - anchor_turn),
             abs(send - seed_hint),
             tested[send][1],
             send,
@@ -1943,10 +2152,7 @@ def build_rescue_missions(world, policy, planned_commitments, modes):
             angle, turns, _, need, send_pref = plan
             saved_turns = max(1, world.remaining_steps - fall_turn)
             value = target.production * saved_turns + max(0, target.ships) * DEFENSE_SHIP_VALUE
-            if (
-                world.enemy_planets
-                and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22
-            ):
+            if world.enemy_planets and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22:
                 value *= DEFENSE_FRONTIER_SCORE_MULT
             score = value / (send_pref + turns * DEFENSE_COST_TURN_WEIGHT + 1.0)
 
@@ -2026,10 +2232,7 @@ def build_recapture_missions(world, policy, planned_commitments, modes):
                 RECAPTURE_PRODUCTION_WEIGHT * target.production * saved_turns
                 + RECAPTURE_IMMEDIATE_WEIGHT * max(0, target.ships)
             )
-            if (
-                world.enemy_planets
-                and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22
-            ):
+            if world.enemy_planets and nearest_distance_to_set(target.x, target.y, world.enemy_planets) < 22:
                 value *= RECAPTURE_FRONTIER_MULT
             value *= RECAPTURE_VALUE_MULT
             score = value / (send_pref + turns * RECAPTURE_COST_TURN_WEIGHT + 1.0)
@@ -2175,9 +2378,7 @@ def build_crash_exploit_missions(world, policy, planned_commitments, modes):
                 modes,
                 policy,
                 mission="crash_exploit",
-                eval_turn_fn=lambda turns, desired_arrival=desired_arrival: max(
-                    turns, desired_arrival
-                ),
+                eval_turn_fn=lambda turns, desired_arrival=desired_arrival: max(turns, desired_arrival),
                 anchor_turn=desired_arrival,
                 anchor_tolerance=CRASH_EXPLOIT_ETA_WINDOW,
             )
@@ -2289,12 +2490,7 @@ def plan_moves(world, deadline=None):
         return doomed
 
     def time_filters_pass(target, turns, needed, src_cap):
-        if not candidate_time_valid(
-            target,
-            turns,
-            world,
-            VERY_LATE_CAPTURE_BUFFER if world.is_very_late else LATE_CAPTURE_BUFFER,
-        ):
+        if not candidate_time_valid(target, turns, world, VERY_LATE_CAPTURE_BUFFER if world.is_very_late else LATE_CAPTURE_BUFFER):
             return False
         if opening_filter(target, turns, needed, src_cap, world, policy):
             return False
@@ -2384,8 +2580,7 @@ def plan_moves(world, deadline=None):
                         partial_value = target_value(target, p_turns, "swarm", world, modes, policy)
                         if partial_value > 0:
                             partial_score = apply_score_modifiers(
-                                partial_value
-                                / (partial_send_cap + p_turns * ATTACK_COST_TURN_WEIGHT + 1.0),
+                                partial_value / (partial_send_cap + p_turns * ATTACK_COST_TURN_WEIGHT + 1.0),
                                 target,
                                 "swarm",
                                 world,
@@ -2466,9 +2661,7 @@ def plan_moves(world, deadline=None):
                         )
                     )
 
-            snipe = build_snipe_mission(
-                src, target, src_available, world, planned_commitments, modes, policy
-            )
+            snipe = build_snipe_mission(src, target, src_available, world, planned_commitments, modes, policy)
             if snipe is not None:
                 missions.append(snipe)
 
@@ -2663,9 +2856,7 @@ def plan_moves(world, deadline=None):
                     modes,
                     policy,
                     mission="crash_exploit",
-                    eval_turn_fn=lambda turns, desired_arrival=option.anchor_turn: max(
-                        turns, desired_arrival
-                    ),
+                    eval_turn_fn=lambda turns, desired_arrival=option.anchor_turn: max(turns, desired_arrival),
                     anchor_turn=option.anchor_turn,
                     anchor_tolerance=CRASH_EXPLOIT_ETA_WINDOW,
                 )
@@ -2712,7 +2903,7 @@ def plan_moves(world, deadline=None):
             continue
 
         ordered = sorted(
-            zip(mission.options, limits, strict=False),
+            zip(mission.options, limits),
             key=lambda item: (item[0].turns, -item[1], item[0].src_id),
         )
         remaining = missing
@@ -2810,9 +3001,7 @@ def plan_moves(world, deadline=None):
                 if opening_filter(target, est_turns, rough_needed, src_left, world, policy):
                     continue
 
-                send = preferred_send(
-                    target, rough_needed, est_turns, src_left, world, modes, policy
-                )
+                send = preferred_send(target, rough_needed, est_turns, src_left, world, modes, policy)
                 if send < rough_needed:
                     continue
 
@@ -2956,9 +3145,7 @@ def plan_moves(world, deadline=None):
                 angle, turns, _, plan_need, send = plan
                 if send < plan_need:
                     continue
-                score = target_value(target, turns, "capture", world, modes, policy) / (
-                    send + turns + 1.0
-                )
+                score = target_value(target, turns, "capture", world, modes, policy) / (send + turns + 1.0)
                 if target.owner not in (-1, world.player):
                     score *= 1.05
                 if best_capture is None or score > best_capture[0]:
@@ -3010,7 +3197,9 @@ def plan_moves(world, deadline=None):
             planet.id: nearest_distance_to_set(planet.x, planet.y, frontier_targets)
             for planet in world.my_planets
         }
-        safe_fronts = [planet for planet in world.my_planets if planet.id not in live_doomed]
+        safe_fronts = [
+            planet for planet in world.my_planets if planet.id not in live_doomed
+        ]
         if safe_fronts:
             front_anchor = min(safe_fronts, key=lambda planet: frontier_distance[planet.id])
             send_ratio = (
@@ -3026,18 +3215,14 @@ def plan_moves(world, deadline=None):
                     continue
                 if source_attack_left(rear.id) < REAR_SOURCE_MIN_SHIPS:
                     continue
-                if (
-                    frontier_distance[rear.id]
-                    < frontier_distance[front_anchor.id] * REAR_DISTANCE_RATIO
-                ):
+                if frontier_distance[rear.id] < frontier_distance[front_anchor.id] * REAR_DISTANCE_RATIO:
                     continue
 
                 stage_candidates = [
                     planet
                     for planet in safe_fronts
                     if planet.id != rear.id
-                    and frontier_distance[planet.id]
-                    < frontier_distance[rear.id] * REAR_STAGE_PROGRESS
+                    and frontier_distance[planet.id] < frontier_distance[rear.id] * REAR_STAGE_PROGRESS
                 ]
                 if stage_candidates:
                     front = min(
@@ -3074,12 +3259,23 @@ def plan_moves(world, deadline=None):
                 append_move(rear.id, angle, send)
 
     return finalize_moves()
+```
 
+## [MD]
+## 🛰️ Agent Entry Point
 
+The final wrapper is intentionally thin.
+
+It only reads the observation, builds the world snapshot, asks the strategy layer for launches, and returns those actions in the environment format. All of the real reasoning stays in the three layers above: legal route search, arrival-time forecasting, and commitment-aware mission selection.
+
+Keeping this wrapper small makes the notebook easier to audit, because the path from geometry to world state to policy stays explicit instead of disappearing inside one monolithic `agent()` block.
+
+## [CODE]
+```python
+%%writefile -a submission.py
 # ============================================================
 # Agent Entry Point
 # ============================================================
-
 
 def _read(obs, key, default=None):
     if isinstance(obs, dict):
@@ -3126,3 +3322,652 @@ def agent(obs, config=None):
 
 
 __all__ = ["agent", "build_world"]
+```
+
+## [MD]
+## ✅ Verification
+
+The closing checks exercise the same contracts used by the code.
+
+They confirm that:
+
+- direct launches still respect sun safety and moving-target prediction,
+- arrival-time state queries match same-turn combat rules,
+- reinforce-to-hold, rescue, and recapture remain distinct hold semantics,
+- swarm and crash-window helpers are judged at true arrival times,
+- live doomed salvage reacts to updated commitments rather than stale labels.
+
+These checks matter because the notebook depends on one joined design: legal routing, forecasted ownership, hold-aware defense, coordinated pressure, and commitment-aware cleanup all have to agree with one another.
+
+## [CODE]
+```python
+import importlib
+import importlib.util
+import math
+import py_compile
+import random
+from collections import defaultdict
+from pathlib import Path
+
+from kaggle_environments import make
+
+py_compile.compile('submission.py', doraise=True)
+
+submission_path = Path('submission.py')
+spec = importlib.util.spec_from_file_location('orbit_submission_v11', submission_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+assert hasattr(module, 'agent')
+
+
+class FakeProbeWorld:
+    probe_ship_candidates = module.WorldModel.probe_ship_candidates
+    best_probe_aim = module.WorldModel.best_probe_aim
+
+    def __init__(self):
+        self.planet_by_id = {
+            0: module.Planet(0, 0, 10.0, 10.0, 2.0, 16, 3),
+            1: module.Planet(1, -1, 70.0, 70.0, 2.0, 14, 3),
+        }
+        self.shot_cache = {}
+
+    def plan_shot(self, src_id, target_id, ships):
+        mapping = {
+            2: (0.80, 22, 40.0, (70.0, 70.0)),
+            3: (0.79, 21, 40.0, (70.0, 70.0)),
+            4: (0.78, 20, 40.0, (70.0, 70.0)),
+            5: (0.77, 19, 40.0, (70.0, 70.0)),
+            15: None,
+            16: None,
+        }
+        result = mapping.get(int(ships))
+        self.shot_cache[(src_id, target_id, int(ships))] = result
+        return result
+
+
+class FakeSettleWorld:
+    probe_ship_candidates = module.WorldModel.probe_ship_candidates
+
+    def __init__(self):
+        self.planet_by_id = {
+            0: module.Planet(0, 0, 10.0, 10.0, 2.0, 16, 3),
+            1: module.Planet(1, -1, 70.0, 70.0, 2.0, 4, 4),
+        }
+        self.shot_cache = {}
+        self.player = 0
+        self.comet_ids = set()
+        self.is_four_player = False
+
+    def plan_shot(self, src_id, target_id, ships):
+        mapping = {
+            5: (0.75, 8, 30.0, (70.0, 70.0)),
+            6: (0.74, 7, 30.0, (70.0, 70.0)),
+            12: None,
+            13: None,
+            14: None,
+            15: None,
+            16: None,
+        }
+        result = mapping.get(int(ships))
+        self.shot_cache[(src_id, target_id, int(ships))] = result
+        return result
+
+    def min_ships_to_own_by(self, target_id, eval_turn, attacker_owner, arrival_turn=None, planned_commitments=None, upper_bound=None):
+        return 5
+
+    def is_static(self, planet_id):
+        return False
+
+
+seeded = FakeProbeWorld().best_probe_aim(0, 1, 16, hints=(15,))
+assert seeded is not None
+assert seeded[0] in {2, 3, 4, 5}
+
+settle_world = FakeSettleWorld()
+settle_plan = module.settle_plan(
+    settle_world.planet_by_id[0],
+    settle_world.planet_by_id[1],
+    16,
+    5,
+    settle_world,
+    defaultdict(list),
+    {'attack_margin_mult': 1.0, 'is_finishing': False},
+    {'reaction_time_map': {1: (10**9, 10**9)}},
+    mission='capture',
+)
+assert settle_plan is not None
+
+
+same_turn_world = module.WorldModel(
+    player=0,
+    step=60,
+    planets=[
+        module.Planet(0, 0, 10.0, 10.0, 3.0, 20, 2),
+        module.Planet(1, -1, 30.0, 10.0, 3.0, 5, 2),
+        module.Planet(2, 1, 90.0, 90.0, 3.0, 20, 2),
+    ],
+    fleets=[],
+    initial_by_id={
+        0: module.Planet(0, 0, 10.0, 10.0, 3.0, 20, 2),
+        1: module.Planet(1, -1, 30.0, 10.0, 3.0, 5, 2),
+        2: module.Planet(2, 1, 90.0, 90.0, 3.0, 20, 2),
+    },
+    ang_vel=0.0,
+    comets=[],
+    comet_ids=set(),
+)
+assert same_turn_world.min_ships_to_own_at(1, 5, 0, extra_arrivals=((5, 1, 8),)) == 14
+
+crash_world = module.WorldModel(
+    player=0,
+    step=120,
+    planets=[
+        module.Planet(0, 0, 10.0, 10.0, 3.0, 30, 3),
+        module.Planet(1, -1, 50.0, 50.0, 3.0, 10, 2),
+        module.Planet(2, 1, 90.0, 90.0, 3.0, 30, 3),
+        module.Planet(3, 2, 20.0, 90.0, 3.0, 30, 3),
+    ],
+    fleets=[
+        module.Fleet(10, 1, 30.0, 50.0, 0.0, 2, 8),
+        module.Fleet(11, 2, 70.0, 50.0, math.pi, 3, 7),
+    ],
+    initial_by_id={
+        0: module.Planet(0, 0, 10.0, 10.0, 3.0, 30, 3),
+        1: module.Planet(1, -1, 50.0, 50.0, 3.0, 10, 2),
+        2: module.Planet(2, 1, 90.0, 90.0, 3.0, 30, 3),
+        3: module.Planet(3, 2, 20.0, 90.0, 3.0, 30, 3),
+    },
+    ang_vel=0.0,
+    comets=[],
+    comet_ids=set(),
+)
+crashes = module.detect_enemy_crashes(crash_world)
+assert crashes and crashes[0]['target_id'] == 1
+
+
+def validate_moves(obs, moves):
+    assert isinstance(moves, list), 'agent must return a list of launches'
+    owned_ships = {planet[0]: int(planet[5]) for planet in obs['planets'] if planet[1] == obs['player']}
+    spent = defaultdict(int)
+    for move in moves:
+        assert isinstance(move, (list, tuple)) and len(move) == 3, 'each move must be [src, angle, ships]'
+        src, angle, ships = move
+        assert int(src) in owned_ships, 'move source must be one of our planets'
+        assert math.isfinite(float(angle)), 'launch angle must be finite'
+        assert int(ships) >= 1, 'ship count must be positive'
+        spent[int(src)] += int(ships)
+        assert spent[int(src)] <= owned_ships[int(src)], 'moves cannot overspend a source planet'
+
+
+def synthetic_obs_2p():
+    planets = [
+        [0, 0, 18.0, 50.0, 2.5, 56, 5],
+        [1, 1, 82.0, 50.0, 2.5, 56, 5],
+        [2, -1, 30.0, 50.0, 2.0, 12, 3],
+        [3, -1, 70.0, 50.0, 2.0, 12, 3],
+        [4, -1, 24.0, 28.0, 1.7, 8, 2],
+        [5, -1, 76.0, 72.0, 1.7, 8, 2],
+    ]
+    return {
+        'player': 0,
+        'step': 40,
+        'planets': planets,
+        'initial_planets': planets,
+        'fleets': [],
+        'angular_velocity': 0.025,
+        'comets': [],
+        'comet_planet_ids': [],
+    }
+
+
+def synthetic_obs_4p():
+    planets = [
+        [0, 0, 14.0, 16.0, 2.3, 52, 5],
+        [1, 1, 86.0, 16.0, 2.3, 52, 5],
+        [2, 2, 14.0, 84.0, 2.3, 52, 5],
+        [3, 3, 86.0, 84.0, 2.3, 52, 5],
+        [4, -1, 30.0, 30.0, 1.9, 12, 3],
+        [5, -1, 70.0, 30.0, 1.9, 12, 3],
+        [6, -1, 30.0, 70.0, 1.9, 12, 3],
+        [7, -1, 70.0, 70.0, 1.9, 12, 3],
+        [8, -1, 50.0, 25.0, 1.6, 7, 2],
+        [9, -1, 50.0, 75.0, 1.6, 7, 2],
+    ]
+    fleets = [
+        [0, 1, 61.0, 30.0, math.pi, 1, 10],
+        [1, 2, 39.0, 70.0, 0.0, 2, 10],
+    ]
+    return {
+        'player': 0,
+        'step': 90,
+        'planets': planets,
+        'initial_planets': planets,
+        'fleets': fleets,
+        'angular_velocity': 0.03,
+        'comets': [],
+        'comet_planet_ids': [],
+    }
+
+
+def seed_orbit_wars(seed):
+    random.seed(seed)
+    try:
+        orbit_wars = importlib.import_module('kaggle_environments.envs.orbit_wars.orbit_wars')
+    except ModuleNotFoundError:
+        return
+    orbit_random = getattr(orbit_wars, 'random', None)
+    if orbit_random is not None:
+        orbit_random.seed(seed)
+
+
+def orbit_wars_available():
+    try:
+        make('orbit_wars', debug=True)
+        return True, None
+    except Exception as exc:
+        return False, exc
+
+
+def run_match(players, seed):
+    seed_orbit_wars(seed)
+    env = make('orbit_wars', debug=True)
+    env.run(players)
+    rewards = [state.reward for state in env.steps[-1]]
+    return rewards, len(env.steps)
+
+
+available, error = orbit_wars_available()
+if not available:
+    print('Orbit Wars environment is not registered in this runtime; running synthetic fallback smoke checks instead.')
+    print(f'Reason: {type(error).__name__}: {error}')
+    for name, obs in [('synthetic 2p smoke', synthetic_obs_2p()), ('synthetic 4p smoke', synthetic_obs_4p())]:
+        moves = module.agent(obs)
+        validate_moves(obs, moves)
+        print(f'{name}: launches={len(moves)}, sample={moves[:3]}')
+else:
+    rewards, steps = run_match([module.agent, 'random'], 1234)
+    print(f'2p vs random: rewards={rewards}, steps={steps}')
+```
+
+## [MD]
+The section below mirrors `STRATEGY.md` so readers can inspect the full policy without leaving the notebook.
+
+# Orbit Wars Strategy
+
+This document describes the structured baseline implemented by `orbit-war-submit-v11.ipynb` and `submission.py`.
+
+The identity of `v11` is:
+
+- arrival-time ownership instead of snapshot-only targeting
+- reinforce-to-hold defense instead of one generic defensive rule
+- rescue and recapture as separate mission families
+- multi-probe direct reachability for moving targets
+- multi-source swarm pressure from partial source options
+- crash-window exploitation in multi-player fights
+
+One principle drives the whole policy:
+
+- a launch is worth ships only if it is legal, arrives on a useful turn, and still creates ownership after same-turn combat and already-planned commitments are taken into account
+
+## 1. Decision Flow
+
+| Step | Layer | Core Question | Output |
+| --- | --- | --- | --- |
+| 1 | 🧱 Physics | Is there any legal direct launch for a realistic fleet size? | A direct angle and ETA, or a hard rejection |
+| 2 | 🛡️ World Model | Who owns the target when fleets actually arrive? | Forecasted owner, garrison, hold status, and exact need |
+| 3 | 🧯 Defense Layer | If the target is ours, should it be held, rescued, reinforced, or reclaimed? | Preserve-now missions with correct fall timing |
+| 4 | 🚀 Mission Layer | If the target is attackable, which conversion deserves ships? | Capture, snipe, swarm, crash-exploit, and follow-up candidates |
+| 5 | 🔁 Commit Loop | After one launch is accepted, what changed everywhere else? | Re-aimed final sends, updated commitments, and refreshed cleanup logic |
+
+The decision flow always runs in that order. It starts with route legality, then checks arrival-time state, then chooses whether ships should preserve, expand, pressure, or clean up.
+
+## 2. Strategic Contracts
+
+| Contract | Meaning |
+| --- | --- |
+| Direct-only movement | No waypoint paths or fake sun detours are assumed. A route is usable only if one direct launch is legal. |
+| Sun-safe geometry | Travel starts at the source boundary, ends at the first hit on the target circle, and rejects any segment that crosses the sun. |
+| Arrival-time evaluation | Targets are judged at the turn of arrival, not from the current snapshot alone. |
+| Exact same-turn combat | Fleets arriving on the same turn are grouped by owner, the top two attackers cancel first, and the survivor then fights the garrison. |
+| ETA-aware commitments | Accepted launches are stored as timed future arrivals, so later decisions only benefit from commitments that arrive early enough to matter. |
+| Multi-probe reachability | Candidate generation checks several realistic fleet sizes before declaring a target unreachable. |
+| Final-send re-aim | If the committed ship count changes, angle and ETA are recomputed with that exact fleet size. |
+| Split-launch preservation | Separate launches stay separate because fleet size changes speed, timing, and tactical meaning. |
+
+These contracts are shared across capture, rescue, reinforce-to-hold, recapture, snipe, swarm, crash exploit, and salvage logic.
+
+## 3. World Facts The Strategy Reads
+
+Strategy does not recompute geometry by itself. It asks the world model for facts.
+
+Important queries include:
+
+- `plan_shot(src_id, target_id, ships)`
+  - returns a legal direct angle and ETA for one fleet size
+- `best_probe_aim(src_id, target_id, source_cap, ...)`
+  - searches several realistic fleet sizes and keeps the best legal probe
+- `projected_state(target_id, turn, ...)`
+  - returns forecasted owner and garrison at a chosen turn
+- `projected_timeline(target_id, horizon, ...)`
+  - returns the full future ownership timeline under visible arrivals and planned commitments
+- `hold_status(target_id, ...)`
+  - returns whether a friendly planet holds, how many ships it must keep, and when it falls
+- `min_ships_to_own_at(target_id, arrival_turn, attacker_owner, ...)`
+  - returns the exact ships needed to own a target on that arrival turn
+- `min_ships_to_own_by(target_id, eval_turn, attacker_owner, arrival_turn, ...)`
+  - checks ownership by a later evaluation turn
+- `reinforcement_needed_to_hold_until(target_id, arrival_turn, hold_until, ...)`
+  - returns the reinforcement needed to keep a friendly planet ours through a hold horizon
+
+Those queries let the policy ask concrete questions:
+
+- if reinforcement lands before the fall turn, do we still hold?
+- if rescue is too late, how many ships are needed to reclaim the planet soon after?
+- if two or three sources arrive together, do we still own the target after same-turn combat?
+- if enemy fleets collide first, is there a cheap post-crash window right after the fight?
+
+## 4. Policy State
+
+Before building missions, the policy converts world facts into local signals.
+
+### Indirect Wealth
+
+Each target gets a local value signal from nearby production:
+
+- nearby friendly production adds stability value
+- nearby neutral production adds expansion value
+- nearby enemy production adds pressure value
+
+This helps separate empty travel distance from genuinely important map space.
+
+### Reserve And Attack Budget
+
+Each owned planet keeps the larger of:
+
+- exact keep needed against forecast inbound pressure
+- proactive keep against nearby enemy launch threats
+- stacked proactive keep when several enemy launch timings cluster in a short window
+
+Normal offensive use follows:
+
+- `attack budget = current ships - reserve`
+
+This keeps expansion and hostile pressure from consuming ships that the hold forecast still needs.
+
+### Shot-Based Reaction Map
+
+Neutral safety is tagged from legal shot probes rather than rough center-to-center distance.
+
+For each target, legal shots are probed from nearby friendly and enemy sources, and the minimum legal ETA on each side is recorded. That reaction map is then used for:
+
+- safe neutral detection
+- contested neutral detection
+- opening filters
+- value adjustments
+
+### Macro Modes
+
+The policy derives a compact set of mode flags from total ships and production:
+
+- `is_behind`
+- `is_ahead`
+- `is_dominating`
+- `is_finishing`
+- `attack_margin_mult`
+
+These modes tilt appetite and margin sizing, but they never replace arrival-time reasoning.
+
+## 5. Mission Families
+
+### Reinforce-To-Hold
+
+Reinforce-to-hold is the longest-horizon defensive mission.
+
+It is valid only when:
+
+- the target is already ours
+- the planet is forecast to fall without help
+- reinforcement arrives by the required window
+- the added ships keep ownership through a hold horizon, not just one instant
+
+This is different from a generic attack. Reinforcement is preserving a productive asset and its local position, so it uses its own capped source inventory and hold-oriented value model.
+
+### Rescue
+
+Rescue handles the clean hold-before-fall case.
+
+A rescue mission is valid only when:
+
+- the target is ours
+- the fleet arrives on or before `fall_turn`
+- the planet is still ours at `fall_turn` after adding that reinforcement
+
+Rescue is the fast defensive answer when the planet can still be saved in time.
+
+### Recapture
+
+Recapture handles the recover-after-fall case.
+
+A recapture mission is valid only when:
+
+- rescue is too late
+- the fleet arrives after `fall_turn`
+- the delay remains inside the recapture window
+
+This keeps the semantics sharp:
+
+- rescue means hold before the loss
+- recapture means take it back soon after the loss
+
+### Single-Source Capture
+
+This is the default expansion and attack mission.
+
+For each owned source and non-owned target, the policy:
+
+1. searches for a legal route with multi-probe reachability
+2. rejects invalid late or low-life comet cases
+3. computes exact arrival-time need
+4. applies opening and reaction-gap filters
+5. sizes the launch with margin
+6. re-aims with the final send
+7. scores the mission
+
+This is the main path from forecast to action.
+
+### Snipe
+
+Snipe missions target neutrals that enemies are already cracking.
+
+The idea is:
+
+- let an enemy help open the neutral
+- arrive on the same turn or inside a tight timing window
+- own the target after exact same-turn combat resolution
+
+Several enemy inbound ETAs are evaluated, and the best feasible snipe is kept instead of stopping at the first legal one.
+
+### Swarm
+
+Swarm missions are coordinated direct attacks assembled from partial source options.
+
+Important properties:
+
+- a source can contribute even when it cannot finish the target alone
+- swarm candidates are built only from legal direct shots
+- committed sends are re-aimed before acceptance
+- final synchronized ownership is checked again at the true joint arrival turn
+
+There are two swarm forms:
+
+- two-source swarm
+- three-source hostile swarm
+
+Three-source swarm is used only when:
+
+- the target is hostile
+- the target is large enough to justify the extra coordination
+- three sources can arrive inside a tight ETA tolerance
+- no two-source subset is already sufficient
+
+### Crash Exploit
+
+Crash exploit is the four-player opportunistic attack.
+
+The world model scans the visible arrival ledger for cases where two enemy owners are about to collide on the same target. Strategy then looks for a legal direct shot that lands at or shortly after that crash window, never before it.
+
+This turns multi-owner combat into a capture opportunity rather than treating every pressured planet as uniformly dangerous.
+
+### Follow-Up Capture
+
+After the first commitment wave, one more pass is made with leftover attack budget. This pass looks only for one more clean conversion and evaluates it against updated future commitments rather than the original snapshot.
+
+### Live Doomed Salvage
+
+A doomed label is not trusted if it was computed too early.
+
+Before salvage, doomed status is recomputed from current planned commitments. If a planet still looks doomed:
+
+1. it first checks whether the remaining stack can make one last useful capture
+2. otherwise it retreats the stack to a safer allied planet
+
+This avoids evacuating planets that were already stabilized by earlier rescue or reinforcement missions.
+
+### Rear Funneling
+
+Rear planets should not behave like isolated long-range attackers once a real frontier exists.
+
+Outside late game:
+
+- a practical front anchor is identified
+- rear planets meaningfully behind that front are found
+- part of their attack budget is sent to a staging ally closer to action
+
+This converts rear production into faster pressure instead of slow solo expeditions.
+
+## 6. Candidate Generation And Commitment
+
+Candidate generation and commitment are intentionally separate.
+
+### Candidate Generation
+
+Mission families are generated roughly in this order:
+
+1. reinforce-to-hold
+2. rescue
+3. recapture
+4. single-source captures
+5. snipes
+6. two-source and three-source swarms
+7. crash exploits
+
+That order shapes the search space, but it is not the final execution order.
+
+### Global Commit Order
+
+After generation:
+
+- all mission candidates are scored
+- all missions are sorted globally by score
+- missions are then re-solved and committed one by one
+
+That means a high-value snipe or swarm can still beat a weaker single capture even if it was generated later.
+
+## 7. Settlement Logic
+
+`settle_plan()` is the main execution guardrail.
+
+Its job is to keep send sizing, reachability, ETA, and ownership need aligned.
+
+It works like this:
+
+1. start from a legal seed found through probe search
+2. evaluate exact ownership need at the resulting arrival turn
+3. move toward the desired send
+4. if one intermediate ship count is unreachable, fall back to an already tested legal send instead of failing immediately
+
+This keeps moving-target execution stable even when route feasibility changes with fleet size.
+
+`settle_reinforce_plan()` applies the same idea to hold-defense missions, except the objective is to remain ours through a hold horizon rather than to capture at one instant.
+
+All missions are committed one by one in score order. After every accepted launch:
+
+- source inventory is reduced
+- the move is appended
+- `planned_commitments` is updated with ETA and ship count
+
+Later missions therefore reason against the updated future, not against a stale pre-commit snapshot.
+
+## 8. Valuation And Send Sizing
+
+### Target Value
+
+Base value begins with profitable production horizon and is then corrected by:
+
+- indirect local wealth
+- static versus rotating target type
+- neutral versus hostile ownership
+- safe versus contested neutral status
+- comet timing
+- mission type such as snipe, swarm, reinforce, or crash exploit
+- late-game immediate ship swing
+- finishing and behind modes
+
+Reinforcement uses a more hold-oriented value formula than generic capture. It values saved production, saved ships, and frontier stability rather than treating a friendly planet like just another capture target.
+
+### Send Philosophy
+
+The policy usually sends more than the exact minimum.
+
+Margins grow with factors such as:
+
+- hostile ownership
+- higher production
+- contested timing
+- four-player pressure
+- longer travel time
+
+Margins are relaxed in cases like comets where overcommitting is more expensive, and rescue and reinforce use their own hold-focused sizing logic.
+
+## 9. Phase Behavior
+
+### Opening
+
+The opening favors:
+
+- safe neutrals
+- favorable legal reaction gaps
+- disciplined reserve
+- caution on rotating four-player races
+
+### Midgame
+
+The midgame emphasizes:
+
+- reinforce and rescue before greed
+- fast recapture when rescue is too late
+- timing-based snipes
+- compact swarms
+- hostile pressure that still preserves defensive reserves
+
+### Late Game
+
+Late play shifts weight toward:
+
+- immediate ship swing
+- hostile pressure
+- elimination value
+- avoiding launches that arrive too late to matter
+
+## 10. Deliberate Boundaries
+
+The current strategy intentionally does not do the following:
+
+- fake sun-dodging detours
+- launch merging
+- broad combinatorial fleet assignment
+- current-state-only targeting
+- blind all-in opening races
+- treating late recapture as if it were true rescue
+
+These omissions are deliberate. The design goal is consistent sun safety, arrival-time ownership, hold-defense semantics, and commitment timing before adding broader tactical complexity.

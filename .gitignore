@@ -41,6 +41,13 @@ build/
 # Kaggle download artifacts
 *.zip
 
+# NN model checkpoints — regenerable via training
+*.pt
+agents/proxy/*.zip
+
+# Tournament logs (root-level) — regenerable
+/tournament_*.csv
+
 # Submission archive: keep CSV, ignore raw kaggle stdout
 submissions/*.txt
 

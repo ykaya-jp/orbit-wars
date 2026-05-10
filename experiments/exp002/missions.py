@@ -3,20 +3,19 @@
 各 mission は GameState を受け取り `(score, moves)` を返す。Dispatcher は
 全 mission の moves を集約、惑星単位の競合は score 順で解決。
 
-実装 mission:
-  - CaptureMission           : 非所有惑星を ROI 順で占領 (Day 1-2)
-  - CometGrabMission         : 彗星を反応的に占領 (Day 3-4)
-  - RecaptureMission         : 失った惑星を奪還 (Day 3-4)
-  - FleetAggregationMission  : 複数 home から oversized target を奪取 (Day 5)
+実装 mission (Day 1-4):
+  - CaptureMission       : 非所有惑星を ROI 順で占領 (Day 1-2)
+  - CometGrabMission     : 彗星を反応的に占領 (Day 3-4)
+  - RecaptureMission     : 失った惑星を奪還 (Day 3-4)
 
-未実装 (Day 6+):
-  - DefenseMission, SnipeMission, SwarmMission, HoldMission
+未実装 (Day 5+):
+  - DefenseMission, FleetAggregationMission, SnipeMission, SwarmMission
 
 Mission スコア仕様:
     - score == 0  → mission 非適用 (no-op)
     - score > 0   → 適用、複数 mission が同じ from_planet を狙ったら高 score 優先
     - mission ごとに score の絶対値で優先順位がつく:
-        Recapture (10x base) >> Comet (5x) > Capture (1x ROI) ≈ Aggregation (1x ROI)
+        Recapture (10x base) >> Comet (5x) > Capture (1x ROI)
 """
 
 from __future__ import annotations
@@ -256,18 +255,12 @@ class CaptureMission(_BaseMission):
         moves: list[Move] = []
         score_total = 0.0
 
-        # Day 6 (Phase 1.1b multi-target) は v2 比 0/28 全敗で rollback。
-        # bovard data の 5-step bin 分析で「Top tier も序盤は 1 launch/turn 程度」と
-        # 判明し、multi-launch は home garrison を一気に消費して防衛/再 launch を阻害。
-        # → single-target (= 1 home 1 launch) に戻す。
-        # 真の expansion gap 原因はまだ特定中: 取った planet が空 (= 取得時 ships ≈ 0) で
-        # 即 home として再利用できないことが疑われ、Phase 1.1c で `capture_buffer` を
-        # 上げる仮説を検証予定。
         for mine in state.my_planets:
             cap = self._capacity(mine)
             if cap <= 0:
                 continue
 
+            # 全 target を ROI で評価、capacity 内で最大 ROI を採用
             best: tuple[Planet, int, float] | None = None
             best_roi = 0.0
             for t in targets:
@@ -485,319 +478,6 @@ class RecaptureMission(_BaseMission):
             angle = self._aim_angle(mine, target, ships_needed, state)
             moves.append(Move(mine.id, angle, ships_needed))
             score_total += target.production * self.score_per_production
-
-        return score_total, moves
-
-
-# ============================================================================
-# FleetAggregationMission: 複数 home から oversized target を奪取 (失敗モード #1 主因)
-# ============================================================================
-
-
-class FleetAggregationMission(_BaseMission):
-    """単独 home の capacity を超える高 ROI target に対し、複数 home から同 turn 発射する mission。
-
-    `CaptureMission` は `single_home_capacity >= ships_needed` の target のみ取れる。
-    上位プレイヤーが運用する 100-200 ships の garrison を持つ planet に届かない =
-    Capacity gap (失敗モード #1, 主因) の正体。本 mission はこれを解消する。
-
-    戦略:
-      1. `ships_needed > max(home_capacity)` な oversized target を抽出
-         (= CaptureMission が個別では取れない target)
-      2. 全 home の capacity 合計が `ships_needed` 以上なら候補
-      3. ROI (production / (capture_cost + travel_time)) で sort
-      4. greedy: 高 ROI target から、近接 home を順に動員、必要 ships に達したら停止
-      5. 各 home → target に lead-shot + sun-cone safe な angle で発射
-
-    注意:
-      - 同 turn 発射でも arrival 時刻は home 距離で異なる。engine は target 到着順に
-        battle resolution。最初の fleet が capture → 後続が self-reinforce。
-        合計 ships >= ships_needed なら最終的に target を奪取できる
-        (途中で敵の counter があると話は別、Day 6+ で OpponentModel で対応予定)。
-      - CaptureMission との重複は target 識別子で実質回避: oversized target のみ扱う
-        ので Capture が拾える small target には触らない。同じ home の capacity は
-        Dispatcher が remaining 管理するので衝突しない。
-
-    後続改善 (Day 6+):
-      - 同期発射 (= 同 turn 到着の遅延発射計画)。現在は同 turn 発射のみ
-      - max_homes パラメタの自動調整 (現在は固定 4)
-    """
-
-    name = "fleet_aggregation"
-
-    def __init__(
-        self,
-        reserve: int = 5,
-        max_fraction: float = 0.85,
-        margin: int = 2,
-        sun_safety_margin_deg: float = 2.0,
-        max_homes: int = 4,
-        min_step: int = 0,
-        min_target_ships: int = 0,
-        min_production: int = 0,
-        aggr_reserve: int = 0,
-    ):
-        """
-        Args:
-            min_step: この step 未満では aggregation off (序盤 expansion を阻害しない).
-            min_target_ships: target.ships がこれ未満なら skip (true oversized のみ).
-            min_production: target.production がこれ未満なら skip (低 prod に投資しない).
-            aggr_reserve: aggregation 後、各 home に最低これだけ ships を残す
-                (= 守備兵力確保、敵 counter から守る).
-        """
-        super().__init__(reserve, max_fraction, sun_safety_margin_deg)
-        self.margin = margin
-        self.max_homes = max_homes
-        self.min_step = min_step
-        self.min_target_ships = min_target_ships
-        self.min_production = min_production
-        self.aggr_reserve = aggr_reserve
-
-    def _ships_needed(self, target: Planet) -> int:
-        """占領に必要な ship 数 (敵惑星は MARGIN 上乗せ)。Capture と同じ式。"""
-        if target.owner == -1:
-            return target.ships + 1
-        return target.ships + 1 + self.margin
-
-    def _aggr_capacity(self, planet: Planet) -> int:
-        """aggregation 用の控えめ capacity (= 通常 capacity から aggr_reserve 引く).
-
-        各 home に守備兵力 (`aggr_reserve` 隻) を残しておく → 敵 fleet 着弾時の counter
-        を維持。Day 5 観測で aggregation が早期 garrison 枯渇を招き expansion 阻害した
-        ため導入 (`tournament_log_v3_FAILED.csv` に v2 0/12 全敗の証拠).
-        """
-        base = self._capacity(planet)
-        return max(0, base - self.aggr_reserve)
-
-    def evaluate(self, state: GameState) -> tuple[float, list[Move]]:
-        self._maybe_new_episode(state)
-
-        # 序盤は静観 (= v2 と同じ動作で expansion の複利を確保)
-        if state.step < self.min_step:
-            return 0.0, []
-
-        my = state.my_planets
-        if not my:
-            return 0.0, []
-
-        # comet は CometGrab 担当、低 ship/低 prod は skip
-        targets = [
-            p
-            for p in (state.enemy_planets + state.neutral_planets)
-            if p.id not in state.comet_planet_ids
-            and p.ships >= self.min_target_ships
-            and p.production >= self.min_production
-        ]
-        if not targets:
-            return 0.0, []
-
-        home_caps = {p.id: self._aggr_capacity(p) for p in my}
-        max_home_cap = max(home_caps.values()) if home_caps else 0
-        if max_home_cap <= 0:
-            return 0.0, []
-
-        # oversized target (= 単独 home cap < ships_needed) かつ全 home 合計で取れるもの
-        total_cap = sum(home_caps.values())
-        oversized: list[tuple[float, Planet, int]] = []  # (roi, target, ships_needed)
-        for t in targets:
-            need = self._ships_needed(t)
-            if need <= max_home_cap:
-                continue  # CaptureMission が単独で取れる
-            if need > total_cap:
-                continue  # 全 home でも足りない
-            nearest = min(my, key=lambda p: physics.distance((p.x, p.y), (t.x, t.y)))
-            _, t_arr = physics.lead_angle_static(nearest.x, nearest.y, t.x, t.y, need)
-            roi_val = physics.roi(t.production, need, t_arr)
-            oversized.append((roi_val, t, need))
-
-        if not oversized:
-            return 0.0, []
-
-        # ROI 降順
-        oversized.sort(key=lambda x: -x[0])
-
-        moves: list[Move] = []
-        score_total = 0.0
-        # remaining capacity per home (target 間で消費される)
-        remaining = dict(home_caps)
-
-        for roi_val, target, need in oversized:
-            # 早期 abort: 残 capacity 合計が need 未満なら諦める
-            if sum(remaining.values()) < need:
-                continue
-
-            # 近接 home を順に動員
-            sorted_homes = sorted(
-                my,
-                key=lambda p: physics.distance((p.x, p.y), (target.x, target.y)),
-            )
-            assigned: list[tuple[Planet, int]] = []
-            collected = 0
-            homes_used = 0
-            for home in sorted_homes:
-                if homes_used >= self.max_homes:
-                    break
-                cap = remaining[home.id]
-                if cap <= 0:
-                    continue
-                take = min(cap, need - collected)
-                if take <= 0:
-                    continue
-                assigned.append((home, take))
-                collected += take
-                homes_used += 1
-                if collected >= need:
-                    break
-
-            if collected < need:
-                continue  # 達成できず (max_homes 制限など)
-
-            # 採用: 各 home から発射
-            for home, ships in assigned:
-                angle = self._aim_angle(home, target, ships, state)
-                moves.append(Move(home.id, angle, ships))
-                remaining[home.id] -= ships
-            score_total += roi_val
-
-        return score_total, moves
-
-
-# ============================================================================
-# DefenseMission: 敵 fleet の angle observable を利用した守備派遣 (失敗モード #3)
-# ============================================================================
-
-
-def _predict_fleet_target(
-    fleet: Fleet, planets: list[Planet], max_distance: float = 50.0
-) -> tuple[Planet, float] | None:
-    """敵 fleet (x, y, angle, ships) の line trajectory 上で最近接の planet を推定。
-
-    Returns:
-        (target_planet, distance_from_fleet) or None
-    """
-    fx, fy = float(fleet.x), float(fleet.y)
-    fa = float(fleet.angle)
-    cos_a, sin_a = math.cos(fa), math.sin(fa)
-
-    best: tuple[Planet, float] | None = None
-    best_dist = float("inf")
-    for p in planets:
-        dx = float(p.x) - fx
-        dy = float(p.y) - fy
-        # fleet trajectory 方向への射影 (= 進行方向の距離)
-        proj = dx * cos_a + dy * sin_a
-        if proj <= 0:
-            continue  # planet は fleet の後方 = 着弾しない
-        # 直交方向の距離 (= line から planet までの距離)
-        ortho = abs(-dx * sin_a + dy * cos_a)
-        if ortho > float(p.radius) + 1.5:
-            continue  # planet 半径外 = 当たらない
-        if proj > max_distance:
-            continue
-        if proj < best_dist:
-            best_dist = proj
-            best = (p, proj)
-    return best
-
-
-class DefenseMission(_BaseMission):
-    """自陣 planet が敵 fleet の標的になっている時、近接 home から守備派遣する mission。
-
-    使用 insight (`docs/discussion/insights.md` § 2.3):
-      `[id, owner, x, y, angle, from_planet_id, ships]` の `angle` フィールドが
-      敵 fleet でも observable → どの target に向かっているか完全に分かる。
-      → 着弾 turn と必要守備 ships を逆算して間に合う home から派遣。
-
-    戦略:
-      1. 敵 fleet を全 enumerate
-      2. 各 fleet の line trajectory で当たる my_planet (= target) を予測
-      3. target.ships < fleet.ships - margin なら threat 認識
-      4. fleet の eta (= 進行距離 / 速度) より早く守備が届く home を探す
-      5. 必要 ships = fleet.ships - target.ships + buffer で派遣
-
-    後続改善 (Phase 1.2 v2):
-      - sun cone を考慮した実 trajectory (現状は直線)
-      - target.ships 増加 (production / 進行中の自 fleet) を組み込み
-      - 多 fleet 集中攻撃の拡張版
-    """
-
-    name = "defense"
-
-    def __init__(
-        self,
-        reserve: int = 5,
-        max_fraction: float = 0.85,
-        sun_safety_margin_deg: float = 2.0,
-        defense_buffer: int = 5,
-        eta_safety: float = 1.0,
-        score_per_threat: float = 2.0,
-    ):
-        super().__init__(reserve, max_fraction, sun_safety_margin_deg)
-        self.defense_buffer = defense_buffer
-        self.eta_safety = eta_safety
-        self.score_per_threat = score_per_threat
-
-    def evaluate(self, state: GameState) -> tuple[float, list[Move]]:
-        self._maybe_new_episode(state)
-
-        my = state.my_planets
-        enemy_fleets = state.enemy_fleets
-        if not my or not enemy_fleets:
-            return 0.0, []
-
-        my_set = {p.id for p in my}
-        moves: list[Move] = []
-        score_total = 0.0
-        used_homes: set[int] = set()
-
-        for f in enemy_fleets:
-            pred = _predict_fleet_target(f, state.planets)
-            if pred is None:
-                continue
-            target, dist_to_target = pred
-            if target.id not in my_set:
-                continue  # 自陣 planet ではない
-
-            # ETA: 敵 fleet 進行距離 / 速度
-            v_enemy = physics.fleet_speed(int(f.ships))
-            eta = dist_to_target / max(v_enemy, 1e-3)
-
-            # 必要守備 ships: fleet.ships - target.ships + buffer
-            ships_needed = int(f.ships) - int(target.ships) + self.defense_buffer
-            if ships_needed <= 0:
-                continue  # garrison で守れる
-
-            # 各候補 home から送って間に合うか
-            best: tuple[Planet, int] | None = None
-            best_score = 0.0
-            for home in my:
-                if home.id in used_homes:
-                    continue
-                cap = self._capacity(home)
-                if cap < ships_needed:
-                    continue
-                d_home = physics.distance(
-                    (float(home.x), float(home.y)),
-                    (float(target.x), float(target.y)),
-                )
-                v_home = physics.fleet_speed(ships_needed)
-                travel = d_home / max(v_home, 1e-3)
-                if travel > eta - self.eta_safety:
-                    continue  # 間に合わない
-                # 近 + capacity 多い = 高 score
-                score = (1.0 / max(d_home, 1.0)) * cap
-                if score > best_score:
-                    best_score = score
-                    best = (home, ships_needed)
-
-            if best is None:
-                continue
-
-            home, ships = best
-            used_homes.add(home.id)
-            angle = self._aim_angle(home, target, ships, state)
-            moves.append(Move(home.id, angle, ships))
-            score_total += self.score_per_threat
 
         return score_total, moves
 
