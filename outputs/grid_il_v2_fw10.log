@@ -1,0 +1,32 @@
+warning: `VIRTUAL_ENV=/home/yusuke_kaya/confirm/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+train: 45000, val: 5000
+params: 88,114
+  class weight: no_op=1.0, fire=10.0
+training 20 epochs on cuda
+  epoch  1: train loss=1.6100 acc=0.902 | val loss=0.3864 acc=0.913
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch  2: train loss=1.2434 acc=0.902 | val loss=0.3880 acc=0.899
+  epoch  3: train loss=1.0648 acc=0.906 | val loss=0.3197 acc=0.909
+  epoch  4: train loss=0.9871 acc=0.907 | val loss=0.2990 acc=0.909
+  epoch  5: train loss=0.9352 acc=0.908 | val loss=0.2870 acc=0.912
+  epoch  6: train loss=0.9055 acc=0.908 | val loss=0.2980 acc=0.907
+  epoch  7: train loss=0.8811 acc=0.910 | val loss=0.2620 acc=0.914
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch  8: train loss=0.8603 acc=0.909 | val loss=0.2610 acc=0.915
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch  9: train loss=0.8400 acc=0.910 | val loss=0.3158 acc=0.901
+  epoch 10: train loss=0.8248 acc=0.910 | val loss=0.2516 acc=0.916
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch 11: train loss=0.8171 acc=0.911 | val loss=0.2800 acc=0.907
+  epoch 12: train loss=0.7970 acc=0.912 | val loss=0.2643 acc=0.910
+  epoch 13: train loss=0.7845 acc=0.912 | val loss=0.2992 acc=0.902
+  epoch 14: train loss=0.7777 acc=0.912 | val loss=0.2422 acc=0.917
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch 15: train loss=0.7687 acc=0.913 | val loss=0.2492 acc=0.919
+    saved best to agents/proxy/grid_il_v2_fw10.pt
+  epoch 16: train loss=0.7614 acc=0.914 | val loss=0.2443 acc=0.918
+  epoch 17: train loss=0.7499 acc=0.914 | val loss=0.2607 acc=0.911
+  epoch 18: train loss=0.7458 acc=0.914 | val loss=0.2664 acc=0.907
+  epoch 19: train loss=0.7352 acc=0.914 | val loss=0.2523 acc=0.914
+  epoch 20: train loss=0.7286 acc=0.915 | val loss=0.2194 acc=0.923
+    saved best to agents/proxy/grid_il_v2_fw10.pt
