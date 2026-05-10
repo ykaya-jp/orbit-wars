@@ -51,8 +51,12 @@ extend-exclude = [
     # External public-kernel code adopted as-is for fast iteration.
     # We don't reformat upstream style; keep it grep-friendly with the original.
     "src/orbit_wars/agent.py",
-    "experiments/*/main.py",
+    "experiments/**/main.py",
+    "experiments/**/main_full_concat.py",
+    "experiments/**/decode_weights.py",
+    "experiments/**/all_code.py",
     "docs/research/public_kernels/**",
+    "submissions/**",
 ]
 
 [tool.ruff.lint]

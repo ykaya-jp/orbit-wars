@@ -48,8 +48,10 @@ agents/proxy/*.zip
 # Tournament logs (root-level) — regenerable
 /tournament_*.csv
 
-# Submission archive: keep CSV, ignore raw kaggle stdout
+# Submission archive: keep CSV, ignore raw kaggle stdout + build artifacts
 submissions/*.txt
+submissions/build/
+submissions/submission.tar.gz
 
 # Notebook output (nbstripout handles this on commit, but keep gitignore as belt+suspenders)
 *-checkpoint.ipynb
