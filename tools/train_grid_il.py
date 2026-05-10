@@ -79,6 +79,12 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--num-workers", type=int, default=2)
+    ap.add_argument(
+        "--fire-weight",
+        type=float,
+        default=1.0,
+        help="multiplier for fire-class loss (vs no-op). >1 to counter no-op bias.",
+    )
     args = ap.parse_args()
 
     bc_dir = Path(args.bc_dir)
@@ -106,6 +112,14 @@ def main() -> int:
     print(f"params: {count_params(model):,}")
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
+    # Class weight: counter no-op majority bias.
+    # All fire classes (1..80) get `fire_weight`, no-op (0) keeps weight 1.0.
+    PER_CELL_ACTIONS = 81
+    class_weight = torch.ones(PER_CELL_ACTIONS, dtype=torch.float32, device=device)
+    class_weight[1:] = args.fire_weight
+    if args.fire_weight != 1.0:
+        print(f"  class weight: no_op=1.0, fire={args.fire_weight}")
+
     # `-128` was used as the int8 sentinel for "ignore" cells (= no my_planet).
     # Convert to int64's CrossEntropy ignore_index of -100.
     IGNORE = -100
@@ -130,7 +144,12 @@ def main() -> int:
 
             logits, _ = model(spatial, globals_)  # (B, H, W, K)
             B, H, W, K = logits.shape
-            loss = F.cross_entropy(logits.reshape(-1, K), labels.reshape(-1), ignore_index=IGNORE)
+            loss = F.cross_entropy(
+                logits.reshape(-1, K),
+                labels.reshape(-1),
+                weight=class_weight,
+                ignore_index=IGNORE,
+            )
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
