@@ -173,7 +173,8 @@ def _evaluate_mutant(mutant: Mutant, opponents: list[str], seeds: list[int]) -> 
     if len(df) == 0:
         return 0.0
     # mutant is at p0 of `agents`, but rotation shifts it. Find mutant rows.
-    mutant_norm = str(mutant.main_py_path.relative_to(REPO_ROOT))
+    # Path may be relative; resolve before comparing to REPO_ROOT.
+    mutant_norm = str(mutant.main_py_path.resolve().relative_to(REPO_ROOT))
     n = 0
     w = 0
     for row in df.iter_rows(named=True):

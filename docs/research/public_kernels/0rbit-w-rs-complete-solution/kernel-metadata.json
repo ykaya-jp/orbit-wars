@@ -1,0 +1,27 @@
+{
+  "id": "wasiqaliyasir/0rbit-w-rs-complete-solution",
+  "id_no": 118416455,
+  "title": "0rbit W@rs Complete Solution",
+  "code_file": "0rbit-w-rs-complete-solution.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "games",
+    "video games",
+    "simulations",
+    "video",
+    "python"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "orbit-wars"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None"
+}

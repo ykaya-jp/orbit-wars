@@ -1,0 +1,21 @@
+{
+  "id": "museofnephorion/sun-signal-alliance-protocol-ssap-draft-spec",
+  "id_no": 118208978,
+  "title": "Sun-Signal Alliance Protocol (SSAP) \u2014 Draft Spec",
+  "code_file": "sun-signal-alliance-protocol-ssap-draft-spec.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "orbit-wars"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None"
+}

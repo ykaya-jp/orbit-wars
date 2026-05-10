@@ -27,14 +27,19 @@ submit() {
   sleep 30
 }
 
-# 1. orbitbotnext (single-file, untested LB, 4P 20%, 2P 85%)
-submit "orbitbotnext" "experiments/orbitbotnext/main.py" "phase-α'' orbitbotnext (pascalledesma, untested LB)"
+# Day 2 priority order (refined after evening research):
+# 1. konbu17 + topk1: konbu17 author's own +75 LB claim ("LB ~1049")
+#    Source: konbu17/train-submit-v4-ml-validator-topk1-tutorial
+# 2. konbu17 + weak_enemy_aggressive: our bowwow/Vadasz strategy patch
+# 3. konbu17 t=0.35: safe threshold tweak from default 0.40 (LB 989)
+# 4. orbitbotnext: untested LB, 4P 25% locally, 2P 85% — datapoint
+# 5. konbu17 t=0.45: opposite threshold direction
 
-# 2-5. konbu17 hybrid threshold sweep (vs LB 989.2 default)
-submit "konbu17 t=0.30" "submissions/konbu17_t030.tar.gz" "phase-γ-thresh-0.30 (validator looser)"
+submit "konbu17 + topk1" "submissions/konbu17_topk1.tar.gz" "phase-γ-topk1 (konbu17 author +75 LB claim)"
+submit "konbu17 weak-enemy-aggressive" "submissions/konbu17_weak_enemy_aggressive.tar.gz" "phase-γ-bowwow-patch (our weak-enemy + long-travel + ahead-attack)"
 submit "konbu17 t=0.35" "submissions/konbu17_t035.tar.gz" "phase-γ-thresh-0.35"
+submit "orbitbotnext" "experiments/orbitbotnext/main.py" "phase-α'' orbitbotnext (pascalledesma, 4P 25%)"
 submit "konbu17 t=0.45" "submissions/konbu17_t045.tar.gz" "phase-γ-thresh-0.45"
-submit "konbu17 t=0.50" "submissions/konbu17_t050.tar.gz" "phase-γ-thresh-0.50 (validator stricter)"
 
 echo ""
 echo "=== Day 2 submissions complete (5/5 daily) ==="

@@ -1,0 +1,21 @@
+{
+  "id": "agentzz/orbitwars-hybrid-agent",
+  "id_no": 117086391,
+  "title": "OrbitWars Hybrid Agent",
+  "code_file": "orbitwars-hybrid-agent.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "orbit-wars"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None"
+}
