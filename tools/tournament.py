@@ -64,8 +64,13 @@ def _run_one(
     left: str,
     right: str,
     seed: int,
+    p3: str | None = None,
+    p4: str | None = None,
 ) -> dict:
-    """Run a single episode in a subprocess. Returns parsed result dict."""
+    """Run a single episode in a subprocess. Returns parsed result dict.
+
+    If p3 and p4 are given, runs 4-player FFA. Otherwise 2-player.
+    """
     cmd = [
         sys.executable,
         "-m",
@@ -77,6 +82,8 @@ def _run_one(
         "--seed",
         str(seed),
     ]
+    if p3 and p4:
+        cmd.extend(["--p3", p3, "--p4", p4])
     t0 = time.perf_counter()
     try:
         proc = subprocess.run(
