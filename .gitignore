@@ -64,3 +64,7 @@ data/replays/*
 elo.json
 /tournament_log.csv
 !experiments/**/tournament_log.csv
+data/processed/grid_bc_lakhindar/spatial.npy
+data/processed/grid_bc_lakhindar/labels.npy
+data/processed/grid_bc_lakhindar/globals.npy
+data/external/rank1_lakhindar/
