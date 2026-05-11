@@ -57,14 +57,10 @@ submit "zachary+topk1 NEW" \
   "submissions/build_zachary_topk1/main.py" \
   "phase-zachary-topk1 (zachary LB ~1000 base + largest-move wrapper)"
 
-# 5. PPO θ.2 (= when complete; placeholder)
-if [ -f "agents/proxy/ppo_v2_theta2.zip" ]; then
-  # Need to package PPO as submission first - see scripts/package_ppo_submission.sh
-  echo "PPO θ.2 weights ready, but submission packaging required"
-  echo "Manual: package_ppo_submission.sh agents/proxy/ppo_v2_theta2.zip submissions/ppo_v2.tar.gz"
-else
-  echo "PPO θ.2 not ready yet, slot 5 unused"
-fi
+# 5. rudra + topk1 + bowwow (MIN_SHIPS_MINE_ATTACK 10→15, FRAC 0.7→0.85, +topk1)
+submit "rudra+topk1+bowwow NEW" \
+  "submissions/build_rudra_topk1_bowwow/main.py" \
+  "phase-rudra-topk1-bowwow (rudra+MIN_SHIPS=15+FRAC=0.85+topk1, kovi-tier fleet match)"
 
 echo ""
 echo "=== Day 3 submissions complete ==="
