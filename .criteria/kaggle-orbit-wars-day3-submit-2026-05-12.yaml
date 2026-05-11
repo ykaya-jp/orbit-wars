@@ -1,8 +1,10 @@
 task_id: kaggle-orbit-wars-day3-submit-2026-05-12
 goal: |
   残 43 day で LB ≥ 1700 (優勝圏) を狙う統合 3-paradigm 戦略の Day 3 (= 2026-05-12 09:00 JST reset 後) を実行する。
-  目的は (1) Lakhindar IL paradigm の LB 生死判明 (= datapoint isolation) と (2) safety net で既存 LB best 再保証、
+  目的は (1) fleet.angle defense exploit による真因解消 (LB +100-200 期待) と (2) safety net で既存 LB best 再保証、
   これで次 phase (= PPO θ.4 真 PFSP / Expansion rule ensemble) の data 駆動 calibration を可能にする。
+  **2026-05-11 pivot**: Lakhindar 2 件は Day 4 へ延期 (= Day 2 review で 4P 0/8 で risky)、
+  Slot 4-5 を fleet.angle defense backport + rudra 大 fleet に置換 (= review-findings-day2-dawn.md +ROI 最大判定)。
 
 context:
   branch: main
@@ -16,11 +18,11 @@ deliverables:
   - path: docs/strategy/2026-05-11-victory-roadmap.md
     purpose: P1-P6 6 phase 統合 roadmap (各 phase 開始時に別 plan を起票する旨明記)
   - path: tools/day3_submit.sh
-    purpose: Day 3 submit 5 件 orchestration (= 既存 file を P1 5 件構成に書換)
-  - path: submissions/build_lakhindar_pure/main.py
-    purpose: Lakhindar passive IL single submit (= D paradigm の core datapoint)
-  - path: submissions/build_lakhindar_topk1/main.py
-    purpose: Lakhindar + topk1 wrapper ensemble (= IL+topk1 ablation)
+    purpose: Day 3 submit 5 件 orchestration (= fleet.angle pivot 後の 5 件構成)
+  - path: submissions/build_fleet_angle_zachary/main.py
+    purpose: zachary + fleet.angle defense backport (= NEW、 LB +100-200 期待、 review-findings-day2-dawn.md)
+  - path: submissions/build_rudra_topk1_bowwow/main.py
+    purpose: rudra + MIN_SHIPS=15 + FRAC=0.85 + topk1 (= kovi-tier 大 fleet 戦術)
   - path: tools/smoke_day3.sh
     purpose: Day 3 submit 5 件分の local 1-episode smoke (= Kaggle 評価互換性事前確認)
   - path: docs/research/2026-05-12-submission-analyses.md
@@ -37,20 +39,22 @@ baseline:
     value: 11
 
 out_of_scope:
-  - P2 PPO θ.4 真 PFSP trainer の実装と training (= 別 plan, 5/12-5/13 起票予定)
-  - P3 Expansion rule mission 実装 (= 別 plan, P2 完了後)
-  - P4 3-paradigm meta-agent 実装 (= 別 plan, P3 完了後)
+  - P2 PPO θ.4 真 PFSP trainer の実装と training (= Colab Pro+ 移行、 別 plan)
+  - P3 Expansion rule mission 実装 (= 完了済、 別 commit `12e1853`)
+  - P4 3-paradigm meta-agent 実装 (= 別 plan, Day 5+)
   - P5 LB ≥ 1500 達成 criteria (= P4 完了後 plan)
   - P6 LB ≥ 1700 達成 criteria (= 最終 plan, 残 7 day で起票)
   - bowwowforeach reverse engineer (= kernel 非公開で棄却済)
+  - Lakhindar IL 2 件の Day 3 submit (= Day 4 へ延期、 Day 2 review 4P 0/8 risky)
   - 5/13 以降の submit slot 戦略 (= 各 Day の plan で再定義)
 
 risks:
   - "Day 3 09:00 JST reset に間に合わない (= 5 件 tar.gz 未作成) → AC-2..AC-4 で 5 件 file 存在を Day 2 残時間で事前担保、 AC-5 で smoke 通過確認"
-  - "Lakhindar IL が LB 700 以下 (= IL paradigm dead) → 1 slot のみ pure IL、 残 4 slot は safety/既存 best/ppo_v3/IL+topk1 で 4 軸 datapoint。 dead 判明時は P3 で IL paradigm 棄却して RL+rule 2 paradigm 再構成"
-  - "ppo_v3_theta3 Kaggle 60s timeout → AC-5 smoke で 60s 上限事前検知、 超過時は slot 3 を rudra+topk1+bowwow に差替"
+  - "fleet_angle_zachary backport が回帰 (= 既存 zachary より LB 低い) → 1 slot のみ、 残 4 slot は safety/konbu17/ppo_v3/rudra_bowwow で多軸 datapoint。 回帰判明時は Day 4 で zachary base + 別 patch を試す"
+  - "ppo_v3_theta3 Kaggle 60s timeout → AC-5 smoke で 60s 上限事前検知、 超過時は slot 3 を konbu17_bovard_bowwow に差替"
   - "LB resampling lag で 30 分以内 append 不能 → best effort、 24h 後 resample を必須 datapoint (Day 2 lesson)"
   - "ratio drift σ=0.13 (Day 2 actual) が systematic over-optimistic → expected LB を local 4P win rate × 800-900 に校正済 (Day 2 doc § Trend coef)"
+  - "rudra_topk1_bowwow の MIN_SHIPS=15 が overshoot で home garrison 枯渇 → smoke 確認済 (= status DONE 1.3s)、 Day 2 で同 patch を試してない slot 5 で 1st datapoint"
 
 acceptance_criteria:
   - id: AC-1
@@ -60,22 +64,22 @@ acceptance_criteria:
     path: docs/strategy/2026-05-11-victory-roadmap.md
 
   - id: AC-2
-    description: Lakhindar pure IL submit package main.py が存在
+    description: fleet_angle_zachary submit package main.py が存在 (= zachary + fleet.angle defense backport)
     type: output_exists
     severity: required
-    path: submissions/build_lakhindar_pure/main.py
+    path: submissions/build_fleet_angle_zachary/main.py
 
   - id: AC-3
-    description: Lakhindar + topk1 ensemble submit package main.py が存在
+    description: rudra_topk1_bowwow submit package main.py が存在 (= rudra MIN_SHIPS=15 + FRAC=0.85 + topk1)
     type: output_exists
     severity: required
-    path: submissions/build_lakhindar_topk1/main.py
+    path: submissions/build_rudra_topk1_bowwow/main.py
 
   - id: AC-4
-    description: tools/day3_submit.sh が P1 5 件構成に書き換えられている (= submission_v2 / konbu17_topk1 / ppo_v3_theta3 / lakhindar_pure / lakhindar_topk1 全部 grep でヒット)
+    description: tools/day3_submit.sh が pivot 後の 5 件構成に書き換えられている (= submission_v2 / konbu17_topk1 / ppo_v3_theta3 / fleet_angle_zachary / rudra_topk1_bowwow 全部 grep でヒット)
     type: test_pass
     severity: required
-    command: "bash -c 'grep -q submission_v2.tar.gz tools/day3_submit.sh && grep -q konbu17_topk1.tar.gz tools/day3_submit.sh && grep -q ppo_v3_theta3 tools/day3_submit.sh && grep -q build_lakhindar_pure tools/day3_submit.sh && grep -q build_lakhindar_topk1 tools/day3_submit.sh'"
+    command: "bash -c 'grep -q submission_v2.tar.gz tools/day3_submit.sh && grep -q konbu17_topk1.tar.gz tools/day3_submit.sh && grep -q ppo_v3_theta3 tools/day3_submit.sh && grep -q build_fleet_angle_zachary tools/day3_submit.sh && grep -q build_rudra_topk1_bowwow tools/day3_submit.sh'"
     expected_exit_code: 0
     timeout_seconds: 10
 

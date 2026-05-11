@@ -15,13 +15,15 @@ cd "$(dirname "$0")/.."
 
 PYTHON=.venv/bin/python
 
-# 5 件: name → agent path
+# 5 件 (= 2026-05-11 fleet.angle pivot): name → agent path
+# Lakhindar 2 件は Day 4 へ延期 (= Day 2 review で 4P 0/8 で risky)、
+# Slot 4-5 を fleet.angle defense + rudra 大 fleet に置換
 declare -a BUILDS=(
   "submission_v2:submissions/build_v2/main.py"
   "konbu17_topk1:submissions/build_konbu_topk1/main.py"
   "ppo_v3_theta3:submissions/build_ppo_v3_theta3/main.py"
-  "lakhindar_pure:submissions/build_lakhindar_pure/main.py"
-  "lakhindar_topk1:submissions/build_lakhindar_topk1/main.py"
+  "fleet_angle_zachary:submissions/build_fleet_angle_zachary/main.py"
+  "rudra_topk1_bowwow:submissions/build_rudra_topk1_bowwow/main.py"
 )
 
 OVERALL_OK=0

@@ -15,8 +15,8 @@
 | 1 | TBD | submission_v2.tar.gz | TBD | TBD | TBD | 989 | TBD | TBD |
 | 2 | TBD | konbu17_topk1.tar.gz | TBD | TBD | TBD | 922 | TBD | TBD |
 | 3 | TBD | ppo_v3_theta3.tar.gz | TBD | TBD | TBD | 600-800 (= unknown) | TBD | TBD |
-| 4 | TBD | lakhindar_pure.tar.gz | TBD | TBD | TBD | 1100-1300 (= val acc 0.967 transfer 仮定) | TBD | TBD |
-| 5 | TBD | lakhindar_topk1.tar.gz | TBD | TBD | TBD | 1000-1200 (= slot 4 ± topk1 effect) | TBD | TBD |
+| 4 | TBD | fleet_angle_zachary.tar.gz | TBD | TBD | TBD | 1100-1300 (= zachary base + fleet.angle backport +100-200) | TBD | TBD |
+| 5 | TBD | rudra_topk1_bowwow.tar.gz | TBD | TBD | TBD | 900-1100 (= rudra base 692 + 大 fleet +200-400) | TBD | TBD |
 
 **Expected LB 校正済 計算式** (Day 2 ratio σ=0.13 over-optimistic 反映):
 - 既 LB-tested は actual LB をそのまま expected に
@@ -34,25 +34,25 @@
 | 1 (safety) | 既存 best 再 submit | TBD | n/a | 24h resampling drift 計測 |
 | 2 (konbu17+topk1 再) | Day 2 と同 file 再 submit | TBD | n/a | 同上 |
 | 3 (PPO θ.3) | **新 paradigm = RL** (vs Lakhindar IL + rule-base 50k step training) | TBD | TBD | RL paradigm 生死判明 |
-| 4 (Lakhindar pure) | **新 paradigm = top-tier IL** (kovi/Shun_PI BC val acc 0.967) | TBD | TBD | IL paradigm 生死判明 |
-| 5 (Lakhindar + topk1) | slot 4 + topk1 wrapper | TBD | (slot 5 - slot 4) | topk1 が IL に効くか単独評価 |
+| 4 (fleet_angle_zachary) | **NEW: zachary + fleet.angle defense backport** (Day 2 review +ROI 最大) | TBD | smoke vs starter 勝利 (= reward +1.0) | fleet.angle exploit 真効果 (= zachary 600 base から +100-500 期待) |
+| 5 (rudra_topk1_bowwow) | rudra MIN_SHIPS=15 + FRAC=0.85 + topk1 | TBD | TBD | rudra paradigm 強化、 大 fleet 戦術の効果 |
 
 ---
 
 ### Smoke test 事前結果 (= 5/11 22:XX JST、 local 4P 1 ep vs starter × 3)
 
-| Slot | File | duration_sec | step_count | status_p0 | smoke 判定 |
-|---|---|---|---|---|---|
-| 1 | submission_v2 | 10.488 | 195 | DONE | PASS |
-| 2 | konbu17_topk1 | 5.664 | 127 | DONE | PASS |
-| 3 | ppo_v3_theta3 | 1.409 | 249 | DONE | PASS |
-| 4 | lakhindar_pure | 1.390 | 249 | DONE | PASS |
-| 5 | lakhindar_topk1 | 1.379 | 249 | DONE | PASS |
+| Slot | File | duration_sec | step_count | status_p0 | reward_p0 | smoke 判定 |
+|---|---|---|---|---|---|---|
+| 1 | submission_v2 | 10.679 | 195 | DONE | (4P) | PASS |
+| 2 | konbu17_topk1 | 5.719 | 127 | DONE | (4P) | PASS |
+| 3 | ppo_v3_theta3 | 1.514 | 249 | DONE | (4P) | PASS |
+| 4 | fleet_angle_zachary | 0.799 | 123 | DONE | **+1.0 win** | PASS |
+| 5 | rudra_topk1_bowwow | 1.263 | 97 | DONE | (4P) | PASS |
 
 **観察**:
-- ppo_v3_theta3 / lakhindar 系は per-step 0.0056s = Kaggle 評価互換性安全 margin あり
-- submission_v2 と konbu17_topk1 は step_count 早期終了 (= 195 / 127) = 勝敗早期決着 (smash phase 等)
-- lakhindar_pure と lakhindar_topk1 が seed=42 で完全同一 step_count = topk1 effect が 1 ep では trivial、 LB tournament で本評価
+- **fleet_angle_zachary は vs starter で勝利** (= reward +1.0、 zachary base が Day 2 で 4P 0/8 だった事実から劇的改善 signal)
+- rudra_topk1_bowwow が step_count 97 で早期終了 (= 大 fleet 戦術で早期に決着)
+- ppo_v3_theta3 は per-step 0.0056s = Kaggle 評価互換性安全 margin あり
 
 出典:
 - smoke test 実行ログ: `tools/smoke_day3.sh` 出力 2026-05-11
@@ -62,13 +62,14 @@
 
 ### 仮説 (= submit 前)
 
-**H1**: Lakhindar IL pure (slot 4) > 1100 (= IL paradigm が LB に transfer)
-- 根拠: val acc 0.967 (= per-action BC accuracy)、 kovi/Shun_PI 元 LB 1480/1515
-- 失敗時: per-action acc が 4P FFA win rate と非線形、 IL alone は dead = P3 で IL paradigm 棄却
+**H1 (= 主仮説)**: fleet_angle_zachary (slot 4) ≥ 1100 (= zachary 600 base + fleet.angle defense backport で +500)
+- 根拠: review-findings-day2-dawn.md「LB +100-200 期待」、 base agent.py:649-650 流の trajectory hit predict
+- smoke evidence: vs starter で勝利 (= reward +1.0)、 zachary 単独 Day 2 LB 600 vs Day 4 で +500
+- 失敗時: defense 強化が attack budget を圧迫 → expansion が遅れて LB 横ばい
 
-**H2**: Lakhindar + topk1 (slot 5) ≈ Lakhindar pure ± 50 (= topk1 が IL に対しては効きが弱い)
-- 根拠: IL agent は per-step 1 move 中心 (= 多 move 既に少ない)、 topk1 が trivial
-- konbu17 (rule-base) で topk1 が +75 LB だったのは多 move base agent 限定の改善
+**H2**: rudra_topk1_bowwow (slot 5) ≈ 900-1100 (= rudra 692 base + MIN_SHIPS=15 大 fleet + topk1)
+- 根拠: Day 2 rudra base 692.3、 MIN_SHIPS 10→15 + FRAC 0.7→0.85 + topk1 で kovi-tier 大 fleet match
+- 失敗時: home garrison 枯渇で defenseless → LB 低下
 
 **H3**: PPO θ.3 (slot 3) ≈ 600-900 (= 50k step training は不十分、 random ベース)
 - 根拠: AlphaStar / Lux S3 で convergence は 数 100k-1M step、 50k は warm-up 程度
