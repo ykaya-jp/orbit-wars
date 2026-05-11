@@ -21,11 +21,32 @@ context:
 
 deliverables:
   - path: tools/day4_submit.sh
-    purpose: Day 4 submit 5 件 orchestration (= Day 3 best + fleet_angle_v2 + lakhindar + expansion + orbitwork)
+    purpose: Day 4 submit 5 件 orchestration (build inventory 10+ から data-driven 選択)
   - path: docs/research/2026-05-13-submission-analyses.md
     purpose: Day 4 LB 反映 30 分以内 append 用 doc (schema 雛形、 値は 5/13 09:30 以降)
   - path: tools/smoke_day4.sh
     purpose: Day 4 submit 5 件分の local smoke (= Kaggle 互換性確認)
+
+build_inventory_2026_05_11:
+  # build directory + claim/expected LB + Day 4 priority
+  - build_fleet_angle_zachary_v3: fleet.angle + end-game pile-up + Let-them-fight (= main 候補)
+  - build_fleet_angle_zachary_v4: v3 + mid-game saving (= Top tier 戦術 ablation)
+  - build_fleet_angle_zachary_v5: v3 + step 300+ fleet boost (= bovard 数値 駆動)
+  - build_marcodg_topk1: marcodg LB 1060 claim + 我家 topk1 lift (= 別 paradigm)
+  - build_lakhindar_pure: Lakhindar IL val acc 0.967 (= IL paradigm 生死判明)
+  - build_lakhindar_topk1: Lakhindar IL + topk1 (= IL+topk1 ablation)
+  - build_expansion_pure: P3 Expansion rule mission
+  - build_orbitwork_v14: orbitwork-v14 fork (= LB ~1050 claim)
+  - build_sigmaborov_reinforce: sigmaborov-reinforce fork (= LB 958 claim)
+  - build_ppo_v4_theta4: Colab 200k step 完成次第 (= Tier 2 main)
+
+day4_slot_recommendation:
+  # Day 3 LB 反映で 各 slot 最終確定、 以下は default 案
+  slot_1: "Day 3 best 再 submit (= 24h resample、 ratio drift calibrate)"
+  slot_2: "build_fleet_angle_zachary_v3 (= main rule paradigm)"
+  slot_3: "build_fleet_angle_zachary_v5 (= bovard 数値 駆動 ablation)"
+  slot_4: "build_marcodg_topk1 (= 別 paradigm = beam search)"
+  slot_5: "build_ppo_v4_theta4 (= Colab 完了済なら本命、 でなければ build_lakhindar_pure で IL 生死判明)"
 
 baseline:
   - metric: lb_best_after_day3
