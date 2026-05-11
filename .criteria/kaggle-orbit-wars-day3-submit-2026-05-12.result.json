@@ -1,0 +1,115 @@
+{
+  "schema_version": "1",
+  "task_id": "kaggle-orbit-wars-day3-submit-2026-05-12",
+  "criteria_path": ".criteria/kaggle-orbit-wars-day3-submit-2026-05-12.yaml",
+  "overall": "pass",
+  "summary": {
+    "required_pass": 6,
+    "required_fail": 0,
+    "recommended_pass": 0,
+    "recommended_fail": 0,
+    "deferred": 2,
+    "errors": 0
+  },
+  "per_criterion": [
+    {
+      "id": "AC-1",
+      "type": "output_exists",
+      "severity": "required",
+      "description": "P1-P6 統合 roadmap doc が存在し、 各 phase の goal / 期間 / 次 plan trigger 条件を含む",
+      "status": "pass",
+      "evidence": "path /home/yusuke_kaya/projects/kaggle/orbit-wars/docs/strategy/2026-05-11-victory-roadmap.md exists=True",
+      "detail": {
+        "path": "/home/yusuke_kaya/projects/kaggle/orbit-wars/docs/strategy/2026-05-11-victory-roadmap.md",
+        "size_bytes": 8304
+      }
+    },
+    {
+      "id": "AC-2",
+      "type": "output_exists",
+      "severity": "required",
+      "description": "Lakhindar pure IL submit package main.py が存在",
+      "status": "pass",
+      "evidence": "path /home/yusuke_kaya/projects/kaggle/orbit-wars/submissions/build_lakhindar_pure/main.py exists=True",
+      "detail": {
+        "path": "/home/yusuke_kaya/projects/kaggle/orbit-wars/submissions/build_lakhindar_pure/main.py",
+        "size_bytes": 398
+      }
+    },
+    {
+      "id": "AC-3",
+      "type": "output_exists",
+      "severity": "required",
+      "description": "Lakhindar + topk1 ensemble submit package main.py が存在",
+      "status": "pass",
+      "evidence": "path /home/yusuke_kaya/projects/kaggle/orbit-wars/submissions/build_lakhindar_topk1/main.py exists=True",
+      "detail": {
+        "path": "/home/yusuke_kaya/projects/kaggle/orbit-wars/submissions/build_lakhindar_topk1/main.py",
+        "size_bytes": 1013
+      }
+    },
+    {
+      "id": "AC-4",
+      "type": "test_pass",
+      "severity": "required",
+      "description": "tools/day3_submit.sh が P1 5 件構成に書き換えられている (= submission_v2 / konbu17_topk1 / ppo_v3_theta3 / lakhindar_pure / lakhindar_topk1 全部 grep でヒット)",
+      "status": "pass",
+      "evidence": "exit 0 (expected 0)",
+      "detail": {
+        "command": "bash -c 'grep -q submission_v2.tar.gz tools/day3_submit.sh && grep -q konbu17_topk1.tar.gz tools/day3_submit.sh && grep -q ppo_v3_theta3 tools/day3_submit.sh && grep -q build_lakhindar_pure tools/day3_submit.sh && grep -q build_lakhindar_topk1 tools/day3_submit.sh'",
+        "exit_code": 0,
+        "stdout_tail": "",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "id": "AC-5",
+      "type": "test_pass",
+      "severity": "required",
+      "description": "Day 3 submit 5 件全部が local smoke で 1 episode 完走 (= Kaggle 評価互換性、 exception なし、 per-step time p95 ≤ 50ms)",
+      "status": "pass",
+      "evidence": "exit 0 (expected 0)",
+      "detail": {
+        "command": "bash tools/smoke_day3.sh",
+        "exit_code": 0,
+        "stdout_tail": "\n=== smoke: submission_v2 ===\n  agent: submissions/build_v2/main.py\n  status_p0=DONE duration_sec=10.644 step_count=195\n  PASS\n\n=== smoke: konbu17_topk1 ===\n  agent: submissions/build_konbu_topk1/main.py\n  status_p0=DONE duration_sec=5.76 step_count=127\n  PASS\n\n=== smoke: ppo_v3_theta3 ===\n  agent: submissions/build_ppo_v3_theta3/main.py\n  status_p0=DONE duration_sec=1.418 step_count=249\n  PASS\n\n=== smoke: lakhindar_pure ===\n  agent: submissions/build_lakhindar_pure/main.py\n  status_p0=DONE duration_sec=1.404 step_count=249\n  PASS\n\n=== smoke: lakhindar_topk1 ===\n  agent: submissions/build_lakhindar_topk1/main.py\n  status_p0=DONE duration_sec=1.403 step_count=249\n  PASS\n\n===================================\nALL 5 builds smoke PASS\n===================================\n",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "id": "AC-6",
+      "type": "manual_review",
+      "severity": "required",
+      "description": "Day 3 submit window (= 5/12 09:00 JST 以降) で 5 件 submit + 30 分以内に LB initial を submission-analyses.md に append",
+      "status": "deferred",
+      "evidence": "deferred to reviewer agent",
+      "detail": {
+        "rubric": "reviewer agent が docs/research/2026-05-12-submission-analyses.md と `kaggle competitions submissions orbit-wars` 出力を読み、 以下を確認:\n- 5 件 submit ID が表化されている (= 2026-05-11-submission-analyses.md の Day 2 batch 形式)\n- 各 submit の File / Initial LB / Expected LB / Diff vs Expected の 4 列が埋まっている\n- 各 submit の status が COMPLETE で kaggle CLI 出力で確認可能\n- ratio (= initial LB / expected) が 5 件分計算されている\n- 各 source の効果単独評価 (= per-submit effect isolation 表) が記述されている\n- 出典 (= submission ID, kaggle CLI 出力時刻 JST) 引用されている\n"
+      }
+    },
+    {
+      "id": "AC-7",
+      "type": "output_exists",
+      "severity": "required",
+      "description": "P2 (= PPO θ.4 真 PFSP) の plan task が起票されている (= 次 phase 着手前、 Day 3 submit 実行と同時並行可)",
+      "status": "pass",
+      "evidence": "path /home/yusuke_kaya/projects/kaggle/orbit-wars/.criteria/kaggle-orbit-wars-ppo-theta4-pfsp.yaml exists=True",
+      "detail": {
+        "path": "/home/yusuke_kaya/projects/kaggle/orbit-wars/.criteria/kaggle-orbit-wars-ppo-theta4-pfsp.yaml",
+        "size_bytes": 6591
+      }
+    },
+    {
+      "id": "AC-8",
+      "type": "manual_review",
+      "severity": "recommended",
+      "description": "Day 3 reset (= 5/12 09:00 JST) 前に PPO θ.4 真 PFSP trainer 実装着手 (= self-history pool sampler + PFSP weight が tools/ 配下に存在)",
+      "status": "deferred",
+      "evidence": "deferred to reviewer agent",
+      "detail": {
+        "rubric": "reviewer agent が以下のいずれかを確認:\n- tools/train_ppo.py に opponents pool の dynamic sampler 関数があり、 PFSP weight w ∝ (1-win_rate)^2 が実装されている\n- OR tools/train_ppo_pfsp.py が新設され、 self-history pool 8 個 + PFSP weight 実装 + 既存 train_ppo.py ロジック再利用ある\n- opponents pool に学習中の checkpoint を動的追加する logic ある (= θ.3 のような static file list ではない)\n- smoke として 1k step training が実行可能 (= crash しない、 log に reward 計算が記録される)\n"
+      }
+    }
+  ],
+  "error": null
+}

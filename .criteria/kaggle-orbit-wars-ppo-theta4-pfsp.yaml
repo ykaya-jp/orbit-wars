@@ -1,0 +1,127 @@
+task_id: kaggle-orbit-wars-ppo-theta4-pfsp
+goal: |
+  PPO θ.4 を真の PFSP self-history で training し、 vs konbu17 win rate ≥ 50% を達成する。
+  θ.3 zip (= top-tier IL + rule-base mix opponent で 50k step) を warm start として、
+  self-history pool 8 個 (= 学習中の自分の checkpoint を蓄積) + PFSP weight w ∝ (1-win_rate)^2
+  で 100k step 追加 training する。
+
+context:
+  branch: main
+  spec: docs/strategy/2026-05-11-victory-roadmap.md (= P2 section)
+  related:
+    - "~/projects/kaggle/CLAUDE.md §1.3 single paradigm では gold 不可 → A 単独では足りないが本 task は A の品質確保"
+    - "docs/strategy/phase_theta_ppo_design.md §3 PFSP curriculum (= θ.4 の本来設計)"
+    - "AlphaStar Nature 2019 PFSP / Lux S3 1st Frog Parade recipe"
+  preconditions:
+    - "P1 (= Day 3 submit) で Lakhindar IL の LB 生死判明済"
+    - "agents/proxy/ppo_v3_theta3.zip = warm start 用 weight 存在"
+
+deliverables:
+  - path: tools/train_ppo_pfsp.py
+    purpose: 真の PFSP trainer (= self-history pool sampler + PFSP weight + opponent 動的追加)
+  - path: tools/run_ppo_theta4.sh
+    purpose: θ.4 100k step 実行 script (= θ.3 zip 起点、 8 worker、 RTX 3090)
+  - path: agents/proxy/ppo_v4_theta4.zip
+    purpose: θ.4 学習済 weight
+  - path: agents/proxy/ppo_v4_theta4.py
+    purpose: ppo_v4_theta4.zip を kaggle agent として呼ぶ wrapper
+  - path: submissions/build_ppo_v4_theta4/
+    purpose: Kaggle submit 用 directory (= build_ppo_v3_theta3 同形式)
+  - path: docs/research/2026-05-1X-ppo-theta4-training-log.md
+    purpose: training 進捗 + win rate curve + tournament gate 結果
+
+baseline:
+  - metric: theta3_winrate_vs_konbu17
+    value: unknown
+    note: "θ.3 完走後の tournament 未測定。 本 task の Day 1 で測定し baseline 確定"
+  - metric: theta3_winrate_vs_marco
+    value: unknown
+  - metric: theta3_total_timesteps
+    value: 50000
+  - metric: self_history_pool_size_at_start
+    value: 1
+    note: "θ.3 zip のみ pool に存在、 100k step 中に 8 個まで動的追加"
+
+out_of_scope:
+  - P3 Expansion rule mission 実装 (= 別 plan)
+  - P4 3-paradigm meta-agent (= 別 plan)
+  - Rust sim 書き直し (= 設計 doc §4 で scope 外明記)
+  - Day 3 submit 実行 (= P1 plan で完結)
+  - bowwowforeach reverse engineer (= 棄却済)
+
+risks:
+  - "PPO θ.4 mode collapse (= 早期に局所最適に hit、 entropy 低下) → entropy bonus 0.01 + checkpoint per 1k step + win rate trend で 3 連続平坦/負勾配なら early stop"
+  - "Python sim per-step 0.05s で 100k step ≈ 5h × n_envs / 16 = 5h 想定だが実測で 2x 超過 → 16 → 24 parallel に拡張、 or batch size 2x"
+  - "self-history pool が θ.3 起点で偏る (= 似た policy ばかり) → PFSP weight 計算で uniform random 5% mix"
+  - "tournament gate (= vs konbu17 24 ep) の variance 高 → 24 ep を 4 seed × 6 rotation で stratify、 win rate CI ±5% に絞る"
+  - "Lakhindar IL P1 で死亡 (= LB ≤ 700) → reward shaping を rule-base opponent 強化に振り替え"
+
+acceptance_criteria:
+  - id: AC-1
+    description: tools/train_ppo_pfsp.py が新設され、 self-history pool sampler + PFSP weight 関数を含む (= grep ベース)
+    type: test_pass
+    severity: required
+    command: "bash -c 'grep -q \"self_history\" tools/train_ppo_pfsp.py && grep -q \"1.0 - win_rate\" tools/train_ppo_pfsp.py'"
+    expected_exit_code: 0
+    timeout_seconds: 10
+
+  - id: AC-2
+    description: tools/train_ppo_pfsp.py の smoke test (= 1k step training が crash なく完走、 log に reward 計算が記録される)
+    type: test_pass
+    severity: required
+    command: "uv run python -m tools.train_ppo_pfsp --total-timesteps 1000 --n-envs 2 --warm-start agents/proxy/ppo_v3_theta3.zip --output /tmp/ppo_pfsp_smoke.zip 2>&1 | tee /tmp/ppo_pfsp_smoke.log | grep -E '(timesteps|reward)'"
+    expected_exit_code: 0
+    timeout_seconds: 600
+
+  - id: AC-3
+    description: agents/proxy/ppo_v4_theta4.zip が存在
+    type: output_exists
+    severity: required
+    path: agents/proxy/ppo_v4_theta4.zip
+
+  - id: AC-4
+    description: tournament gate vs konbu17 で 24 episode 4P FFA の win rate ≥ 50%
+    type: metric_threshold
+    severity: required
+    command: "uv run python -m tools.tournament --agent-a agents/proxy/ppo_v4_theta4.py --agent-b agents/proxy/konbu17_hybrid.py --num-episodes 24 --num-players 4 --report-format key-value"
+    extract_pattern: "win_rate_a=([0-9]+\\.?[0-9]*)"
+    op: ">="
+    value: 0.50
+    timeout_seconds: 3600
+
+  - id: AC-5
+    description: 4P tournament (vs konbu17 + Marco + orbitbotnext × 24 ep) で win rate ≥ 25%
+    type: metric_threshold
+    severity: required
+    command: "uv run python -m tools.tournament --agent-a agents/proxy/ppo_v4_theta4.py --opponents agents/proxy/konbu17_hybrid.py agents/proxy/marco_1060.py agents/proxy/orbitbotnext.py --num-episodes 24 --num-players 4 --report-format key-value"
+    extract_pattern: "win_rate_a=([0-9]+\\.?[0-9]*)"
+    op: ">="
+    value: 0.25
+    timeout_seconds: 3600
+
+  - id: AC-6
+    description: submissions/build_ppo_v4_theta4/ が build_ppo_v3_theta3 同形式で main.py + ppo_v4_theta4.zip + ppo_inference.py + orbit_wars/ を含む
+    type: output_exists
+    severity: required
+    path: submissions/build_ppo_v4_theta4/main.py
+
+  - id: AC-7
+    description: training log が docs/research/<date>-ppo-theta4-training-log.md に記録され、 reward curve + win rate trend + tournament gate 結果を含む
+    type: manual_review
+    severity: required
+    rubric: |
+      reviewer agent が doc を読み、 以下を確認:
+      - reward curve (= 100k step、 1k step ごと) が表化 or 図示されている
+      - PFSP opponent pool snapshot (= 学習中の checkpoint 追加 timeline) が記録されている
+      - vs konbu17 win rate trend (= 10 ep gate per 10k step) が記録されている
+      - AC-4 / AC-5 の tournament gate 結果が引用されている
+      - 出典 (= training command log path, tournament csv path) が引用されている
+
+  - id: AC-8
+    description: Submit (= LB datapoint 取得) は θ.4 完了後の Day 4-7 plan で実行 (本 plan の scope 外、 ただし build_ppo_v4_theta4/ は ready)
+    type: manual_review
+    severity: recommended
+    rubric: |
+      reviewer agent が以下を確認:
+      - build_ppo_v4_theta4/ が tar.gz 化されている (= submissions/ppo_v4_theta4.tar.gz)
+      - Day 4 submit candidates list に PPO θ.4 が含まれている (= ~/.claude/plans or docs/strategy で言及)
