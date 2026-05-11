@@ -327,6 +327,12 @@ def main() -> int:
 
     if args.warm_start:
         print(f"  loading warm-start weights from {args.warm_start}")
+        # sb3 version mismatch workaround: FloatSchedule/LinearSchedule rename across versions
+        # → custom_objects で deserialization の schedule callable を fresh に置換
+        custom_objects = {
+            "lr_schedule": lambda _: args.learning_rate,
+            "clip_range": lambda _: 0.2,
+        }
         model = MaskablePPO.load(
             args.warm_start,
             env=venv,
@@ -334,6 +340,7 @@ def main() -> int:
             seed=args.seed,
             learning_rate=args.learning_rate,
             ent_coef=args.ent_coef,
+            custom_objects=custom_objects,
         )
     else:
         model = MaskablePPO(
