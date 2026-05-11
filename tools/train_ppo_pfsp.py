@@ -156,26 +156,71 @@ def make_self_opponent(zip_path: str, device: str = "cpu"):
 
 
 class PFSPCallback(BaseCallback):
-    """Periodically save current policy to self-history pool.
+    """Periodically save current policy to self-history pool + LR/ent_coef anneal.
 
-    Win-rate measurement is deferred to a separate eval pass (= not done in
-    this callback to keep training throughput high). Initial weight is 0.5
-    (= uniform priors), which gives the new checkpoint moderate sampling
-    probability until its real win rate is measured.
+    Day 5+ best-practices (= AlphaStar + OpenAI Five 由来):
+    - LR: linear warmup 5% + cosine decay to 10% of peak
+    - ent_coef: 0.05 → 0.005 linear anneal (= early explore + late refine)
     """
 
     def __init__(
         self,
         pool: SelfHistoryPool,
         save_interval: int,
+        total_timesteps: int,
+        lr_peak: float = 5e-4,
+        lr_floor: float = 5e-5,
+        lr_schedule: str = "cosine",
+        ent_peak: float = 0.05,
+        ent_floor: float = 0.005,
+        ent_schedule: str = "anneal",
         verbose: int = 1,
     ):
         super().__init__(verbose)
         self.pool = pool
         self.save_interval = save_interval
         self.next_save_step = save_interval
+        self.total_timesteps = total_timesteps
+        self.lr_peak = lr_peak
+        self.lr_floor = lr_floor
+        self.lr_schedule = lr_schedule
+        self.ent_peak = ent_peak
+        self.ent_floor = ent_floor
+        self.ent_schedule = ent_schedule
+
+    def _compute_lr(self) -> float:
+        if self.lr_schedule == "none":
+            return self.lr_peak
+        step, total = self.num_timesteps, self.total_timesteps
+        warmup = total * 0.05
+        if step < warmup:
+            return self.lr_floor + (self.lr_peak - self.lr_floor) * (step / max(warmup, 1))
+        if self.lr_schedule == "cosine":
+            import math as _m
+
+            progress = (step - warmup) / max(total - warmup, 1)
+            return self.lr_floor + (self.lr_peak - self.lr_floor) * 0.5 * (1 + _m.cos(_m.pi * progress))
+        if self.lr_schedule == "linear":
+            progress = (step - warmup) / max(total - warmup, 1)
+            return self.lr_peak - (self.lr_peak - self.lr_floor) * progress
+        return self.lr_peak
+
+    def _compute_ent_coef(self) -> float:
+        if self.ent_schedule == "none":
+            return self.ent_peak
+        progress = self.num_timesteps / max(self.total_timesteps, 1)
+        return self.ent_peak * (1 - 0.9 * progress) + self.ent_floor
 
     def _on_step(self) -> bool:
+        # Update LR + ent_coef on every rollout boundary (= cheap)
+        if self.num_timesteps % 256 == 0:
+            new_lr = self._compute_lr()
+            for pg in self.model.policy.optimizer.param_groups:
+                pg["lr"] = new_lr
+            self.model.ent_coef = self._compute_ent_coef()
+            self.model.logger.record("train/_lr", new_lr)
+            self.model.logger.record("train/_ent_coef_eff", self.model.ent_coef)
+
         if self.num_timesteps >= self.next_save_step:
             ckpt_path = self.pool.pool_dir / f"ckpt_step_{self.num_timesteps}.zip"
             self.model.save(str(ckpt_path))
@@ -184,7 +229,8 @@ class PFSPCallback(BaseCallback):
                 names = [Path(p).name for p, _ in self.pool.entries]
                 print(
                     f"[PFSP] step={self.num_timesteps} "
-                    f"pool_size={len(self.pool.entries)} entries={names}"
+                    f"pool_size={len(self.pool.entries)} entries={names} "
+                    f"lr={self._compute_lr():.2e} ent_coef={self._compute_ent_coef():.3f}"
                 )
             self.next_save_step += self.save_interval
         return True
@@ -279,6 +325,15 @@ def main() -> int:
         default=0.3,
         help="Per-slot probability of sampling from external opponents (= conditional)",
     )
+    # Day 5+ best-practices (= AlphaStar + OpenAI Five 由来 anneal)
+    ap.add_argument("--lr-schedule", choices=["none", "linear", "cosine"], default="none",
+                    help="LR schedule (= cosine recommended for 1M+ step runs)")
+    ap.add_argument("--lr-peak", type=float, default=5e-4)
+    ap.add_argument("--lr-floor", type=float, default=5e-5)
+    ap.add_argument("--ent-schedule", choices=["none", "anneal"], default="none",
+                    help="ent_coef linear anneal (= anneal for 1M+ runs)")
+    ap.add_argument("--ent-peak", type=float, default=0.05)
+    ap.add_argument("--ent-floor", type=float, default=0.005)
     args = ap.parse_args()
 
     print(f"PFSP-PPO: {args.total_timesteps} steps, {args.n_envs} envs, device={args.device}")
@@ -386,7 +441,18 @@ def main() -> int:
     n_params = sum(p.numel() for p in model.policy.parameters())
     print(f"params: {n_params:,}")
 
-    callback = PFSPCallback(pool, save_interval=args.save_interval, verbose=1)
+    callback = PFSPCallback(
+        pool,
+        save_interval=args.save_interval,
+        total_timesteps=args.total_timesteps,
+        lr_peak=args.lr_peak,
+        lr_floor=args.lr_floor,
+        lr_schedule=args.lr_schedule,
+        ent_peak=args.ent_peak,
+        ent_floor=args.ent_floor,
+        ent_schedule=args.ent_schedule,
+        verbose=1,
+    )
     model.learn(
         total_timesteps=args.total_timesteps,
         callback=callback,
