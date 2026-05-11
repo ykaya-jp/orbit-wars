@@ -51,9 +51,28 @@ def main() -> int:
     ).execute()
     items = resp["files"]
     if not items:
-        print("ERROR: ppo_v4_theta4.zip not found in Drive (= training 完走前 or upload 失敗)", file=sys.stderr)
-        return 1
-    f = items[0]
+        # Fallback: search highest-step checkpoint in pool dir (= final pool member 同等 weight)
+        print("ppo_v4_theta4.zip not found, falling back to highest pool checkpoint...")
+        resp2 = service.files().list(
+            q="name contains 'ckpt_step_' and trashed=false",
+            fields="files(id, name, size, modifiedTime)",
+            pageSize=100,
+        ).execute()
+        ckpts = resp2.get("files", [])
+        if not ckpts:
+            print("ERROR: no checkpoints found in Drive", file=sys.stderr)
+            return 1
+        # Pick max step
+        def _step(n):
+            try:
+                return int(n.split("ckpt_step_")[1].split(".zip")[0])
+            except Exception:
+                return -1
+        ckpts.sort(key=lambda c: _step(c["name"]), reverse=True)
+        f = ckpts[0]
+        print(f"  fallback: using {f['name']} (= step {_step(f['name'])})")
+    else:
+        f = items[0]
     fid = f["id"]
     size_mb = int(f.get("size", 0)) / 1024**2
     print(f"  found: id={fid} size={size_mb:.1f} MB modified={f['modifiedTime']}")

@@ -41,12 +41,15 @@ build_inventory_2026_05_11:
   - build_ppo_v4_theta4: Colab 200k step 完成次第 (= Tier 2 main)
 
 day4_slot_recommendation:
-  # Day 3 LB 反映で 各 slot 最終確定、 以下は default 案
+  # Day 3 LB 反映で 各 slot 最終確定、 以下 default 案
+  # 2026-05-12 update: PPO θ.4 (= 200k step PFSP) Colab 完走 + local build 完了、
+  #   submissions/ppo_v4_theta4.tar.gz (= 425 MB) ready。 explained_variance 0.7-0.9
+  #   train log で確認 (= healthy value function)。 vs starter / vs v3 local AB は 1 ep noise。
   slot_1: "Day 3 best 再 submit (= 24h resample、 ratio drift calibrate)"
   slot_2: "build_fleet_angle_zachary_v3 (= main rule paradigm)"
-  slot_3: "build_fleet_angle_zachary_v5 (= bovard 数値 駆動 ablation)"
-  slot_4: "build_marcodg_topk1 (= 別 paradigm = beam search)"
-  slot_5: "build_ppo_v4_theta4 (= Colab 完了済なら本命、 でなければ build_lakhindar_pure で IL 生死判明)"
+  slot_3: "build_fleet_angle_zachary_v5 (= bovard 数値 駆動 ablation = step 300+ fleet boost)"
+  slot_4: "build_marcodg_topk1 (= 別 paradigm = beam search + 我家 topk1 lift)"
+  slot_5: "ppo_v4_theta4.tar.gz ★ (= 200k PFSP 完走、 IL+RL paradigm、 LB 1100-1400 期待)"
 
 baseline:
   - metric: lb_best_after_day3
