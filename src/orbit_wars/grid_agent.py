@@ -68,8 +68,18 @@ def make_grid_agent(
     device: str = "cpu",
     suppress_no_op: bool = False,
     sun_safety_margin_rad: float = 0.035,
+    no_op_temperature: float = 1.0,
+    fire_threshold: float = 0.0,
+    min_ship_floor: int = 0,
 ):
-    """Returns a kaggle_environments compatible agent function."""
+    """Returns a kaggle_environments compatible agent function.
+
+    Args:
+        no_op_temperature: divide no_op logit by this (>1 = down-weight no_op,
+            < 1 = up-weight). 1.0 = no change, 5.0 = strongly suppress no_op.
+        fire_threshold: only fire if (1 - softmax(no_op_prob)) > threshold.
+        min_ship_floor: minimum ships to actually launch (override decoded value).
+    """
     model = GridSEResNet()
     ckpt = torch.load(model_path, map_location=device, weights_only=True)
     if isinstance(ckpt, dict) and "state_dict" in ckpt:
@@ -105,13 +115,27 @@ def make_grid_agent(
                     continue
 
                 cell_logits = logits[row, col].clone()
+                # Down-weight no_op via temperature: divide its logit by temperature.
+                # > 1.0 = make no_op less likely (= more aggressive firing).
+                if no_op_temperature != 1.0:
+                    cell_logits[NO_OP_CLASS] = cell_logits[NO_OP_CLASS] / no_op_temperature
                 if suppress_no_op:
                     cell_logits[NO_OP_CLASS] = float("-inf")
+
+                # Optional: fire only if confidence high enough
+                if fire_threshold > 0.0:
+                    probs = torch.softmax(cell_logits, dim=-1)
+                    fire_prob = 1.0 - float(probs[NO_OP_CLASS])
+                    if fire_prob < fire_threshold:
+                        continue
+
                 cls = int(cell_logits.argmax().item())
                 decoded = _decode_grid_action(cls, home_cap)
                 if decoded is None:
                     continue
                 angle, ships = decoded
+                if min_ship_floor > 0 and ships < min_ship_floor:
+                    ships = min(min_ship_floor, home_cap)
                 if ships <= 0 or ships > home_cap:
                     continue
                 home_x, home_y = float(planet[2]), float(planet[3])
