@@ -126,15 +126,19 @@ class SelfHistoryPool:
 # ====================================================================
 
 _SELF_OPP_CACHE: dict[str, object] = {}
+_SELF_OPP_BAD: set[str] = set()  # cache of paths that previously failed to load
 
 
 def make_self_opponent(zip_path: str, device: str = "cpu"):
     """Load a PPO checkpoint zip as a kaggle_environments agent function.
 
-    Cached per-path to avoid repeated heavy load.
+    Cached per-path to avoid repeated heavy load. Failed paths are cached in
+    `_SELF_OPP_BAD` so warnings emit only once.
     """
     if zip_path in _SELF_OPP_CACHE:
         return _SELF_OPP_CACHE[zip_path]
+    if zip_path in _SELF_OPP_BAD:
+        raise RuntimeError("self-opponent previously failed (cached skip)")
     # Reuse the inference adapter already used for submit
     sub_dir = _TOOLS.parent / "submissions" / "build_ppo_v3_theta3"
     if str(sub_dir) not in sys.path:
@@ -216,7 +220,9 @@ def _build_sample_opponents(
                         opps.append(make_self_opponent(p, device=device))
                         placed = True
                     except Exception as exc:
-                        print(f"  [warn] failed to load self-opponent {p}: {exc}")
+                        if p not in _SELF_OPP_BAD:
+                            print(f"  [warn] failed to load self-opponent {p}: {exc}")
+                            _SELF_OPP_BAD.add(p)
             if not placed and r < self_play_prob + external_prob and external_fns:
                 opps.append(random.choice(external_fns))
                 placed = True
@@ -327,21 +333,57 @@ def main() -> int:
 
     if args.warm_start:
         print(f"  loading warm-start weights from {args.warm_start}")
-        # sb3 version mismatch workaround: FloatSchedule/LinearSchedule rename across versions
-        # → custom_objects で deserialization の schedule callable を fresh に置換
+        # sb3 version mismatch workaround: FloatSchedule/LinearSchedule rename + SIGSEGV on
+        # full deserialize across sb3 major versions (= θ.3 zip saved with old sb3 →
+        # full load crashes Colab sb3 2.8.0). Fallback: create fresh MaskablePPO and
+        # load `policy.pth` state_dict only (= weights-only warm-start, no optimizer state).
         custom_objects = {
             "lr_schedule": lambda _: args.learning_rate,
             "clip_range": lambda _: 0.2,
         }
-        model = MaskablePPO.load(
-            args.warm_start,
-            env=venv,
-            device=args.device,
-            seed=args.seed,
-            learning_rate=args.learning_rate,
-            ent_coef=args.ent_coef,
-            custom_objects=custom_objects,
-        )
+        try:
+            model = MaskablePPO.load(
+                args.warm_start,
+                env=venv,
+                device=args.device,
+                seed=args.seed,
+                learning_rate=args.learning_rate,
+                ent_coef=args.ent_coef,
+                custom_objects=custom_objects,
+            )
+            print("  full load OK")
+        except Exception as exc:
+            print(f"  full load failed: {exc}")
+            print("  fallback: create fresh model + load policy.pth state_dict only")
+            import io
+            import zipfile
+            import torch as _torch
+
+            model = MaskablePPO(
+                MaskableMultiInputActorCriticPolicy,
+                venv,
+                learning_rate=args.learning_rate,
+                n_steps=args.n_steps,
+                batch_size=args.batch_size,
+                n_epochs=args.n_epochs,
+                gamma=args.gamma,
+                gae_lambda=args.gae_lambda,
+                ent_coef=args.ent_coef,
+                policy_kwargs=policy_kwargs,
+                device=args.device,
+                verbose=1,
+                seed=args.seed,
+            )
+            with zipfile.ZipFile(args.warm_start) as zf:
+                with zf.open("policy.pth") as pf:
+                    sd = _torch.load(io.BytesIO(pf.read()), map_location=args.device, weights_only=True)
+            # state_dict shape mismatch でも load させる (= strict=False)、 不一致 key は print
+            missing, unexpected = model.policy.load_state_dict(sd, strict=False)
+            if missing:
+                print(f"  [warn] missing keys: {len(missing)} (first 3: {missing[:3]})")
+            if unexpected:
+                print(f"  [warn] unexpected keys: {len(unexpected)} (first 3: {unexpected[:3]})")
+            print("  policy weights loaded (= partial warm-start, optimizer state fresh)")
     else:
         model = MaskablePPO(
             MaskableMultiInputActorCriticPolicy,
