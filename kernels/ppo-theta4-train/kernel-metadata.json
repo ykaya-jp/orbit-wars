@@ -1,0 +1,14 @@
+{
+  "id": "ky7240/orbit-wars-ppo-theta-4-pfsp-training",
+  "title": "Orbit Wars PPO theta.4 PFSP Training",
+  "code_file": "train.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "dataset_sources": ["ky7240/orbit-wars-source"],
+  "competition_sources": [],
+  "kernel_sources": []
+}
