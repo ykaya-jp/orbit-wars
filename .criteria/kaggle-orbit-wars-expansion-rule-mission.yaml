@@ -1,0 +1,102 @@
+task_id: kaggle-orbit-wars-expansion-rule-mission
+goal: |
+  bovard 280 万 row 真因解析の Expansion gap (= Top tier step 100 で 5-7 planets vs 我家 1-2 planets、 100 倍劣後)
+  を rule-base で直解く ExpansionPriorityMission クラスを新設する。 既存 CaptureMission の capacity gap
+  失敗モード (= 取得時 ships ≈ 0 で post-capture garrison なし、 即 home 再利用不能) を **capture_buffer 上げ
+  + nearby cluster 優先 + early game 限定** で解消する。
+
+context:
+  branch: main
+  spec: docs/strategy/2026-05-11-victory-roadmap.md (= P3 section)
+  related:
+    - "~/projects/kaggle/CLAUDE.md §1.3 single paradigm では gold 不可 / §5 3+ paradigm mix"
+    - "~/.claude/CLAUDE.md lessons [2026-05-10] orbit-wars host dataset verification skip lesson"
+    - "src/orbit_wars/missions.py:263-265 (= 既存 CaptureMission の expansion gap 原因 comment)"
+  preconditions:
+    - "src/orbit_wars/missions.py に _BaseMission / GameState / Move / Mission Protocol / Dispatcher 存在"
+    - "kaggle_environments.envs.orbit_wars.orbit_wars Planet, Fleet 使用可"
+
+deliverables:
+  - path: src/orbit_wars/missions.py
+    purpose: ExpansionPriorityMission クラス追加 (= _BaseMission 継承、 early_game_steps / max_distance / capture_buffer / score_multiplier param)
+  - path: tests/test_expansion_mission.py
+    purpose: pytest unit test (= early game で active / late game で deactive / capture_buffer 反映 / nearby cluster 限定)
+  - path: submissions/build_expansion_pure/main.py
+    purpose: ExpansionPriorityMission + CaptureMission + Dispatcher を組み合わせた agent (= Day 4 以降 submit candidate)
+  - path: docs/research/2026-05-11-expansion-rule-design.md
+    purpose: 設計根拠 (= bovard 数値、 既存 CaptureMission の失敗モード、 score 設計、 unit test 仕様)
+
+baseline:
+  - metric: existing_capture_mission_score_top_tier_step100_my_planets
+    value: 1-2
+    note: "5/11 docs/research/2026-05-11-losing-play-analysis.md より、 我家 reexel 系 episode の step 100 my planets 中央値 1-2"
+  - metric: top_tier_step100_my_planets
+    value: 5-7
+    note: "bovard 280万 row 分析 (= ~/.claude/CLAUDE.md 2026-05-10 lesson)、 kovi/Shun_PI 系 episode 中央値"
+  - metric: expansion_gap_ratio
+    value: 4-7x
+    note: "Top tier / 我家 の planets 比、 ships 比は 100x (= 数十 vs 数百)"
+
+out_of_scope:
+  - P4 3-paradigm meta-agent (= 別 plan、 ExpansionPriorityMission + Lakhindar IL + PPO θ.4 統合)
+  - PPO θ.4 training (= P2 plan)
+  - Day 3 / Day 4 submit 戦略 (= 各 Day plan)
+  - bowwowforeach reverse engineer (= 棄却済)
+  - 既存 CaptureMission の修正 (= 新規 mission として追加、 既存挙動は保持)
+
+risks:
+  - "ExpansionPriorityMission の高 score が CaptureMission を completely override し、 late game の defensive expansion を阻害 → mitigation: early_game_steps=150 で deactivate、 step > 150 で score=0 返す"
+  - "capture_buffer 過大で home garrison 枯渇、 自身が defenseless になる → mitigation: cap (= _capacity()) 内で send size を clip、 reserve=5 で home 最低限保持"
+  - "score_multiplier 過大で comet/recapture を override → mitigation: multiplier=2.0 (= CaptureMission の 2 倍止まり)、 Recapture (10x base) を override しない"
+  - "nearby cluster がない map で 0 move = 自家防衛のみで負ける → mitigation: late game (step > 150) で CaptureMission が引き継ぎ"
+  - "既存 episode で expansion 過剰加速 → 早期に enemy と衝突 → mitigation: 自分の planet から max_distance=35 以内のみ target、 全 map expansion はしない"
+  - "数理本質性の誤解 (= expansion gap が真因でない可能性) → mitigation: P3 完了後 local 4P smoke で step 100 my planets を測定、 5+ 達成しないなら設計を bovard 数値で再 calibrate"
+
+acceptance_criteria:
+  - id: AC-1
+    description: ExpansionPriorityMission クラスが src/orbit_wars/missions.py に追加されている (= class definition + name="expansion_priority")
+    type: test_pass
+    severity: required
+    command: "bash -c 'grep -q \"class ExpansionPriorityMission\" src/orbit_wars/missions.py && grep -q \"expansion_priority\" src/orbit_wars/missions.py'"
+    expected_exit_code: 0
+    timeout_seconds: 10
+
+  - id: AC-2
+    description: ExpansionPriorityMission の unit test が tests/test_expansion_mission.py に存在し、 pytest pass
+    type: test_pass
+    severity: required
+    command: "uv run pytest tests/test_expansion_mission.py -v"
+    expected_exit_code: 0
+    timeout_seconds: 60
+
+  - id: AC-3
+    description: submissions/build_expansion_pure/main.py が存在
+    type: output_exists
+    severity: required
+    path: submissions/build_expansion_pure/main.py
+
+  - id: AC-4
+    description: build_expansion_pure の local smoke (= 4P 1 ep vs starter × 3) で DONE 完走 + duration < 60s
+    type: test_pass
+    severity: required
+    command: "uv run python -m tools._run_episode --left submissions/build_expansion_pure/main.py --right starter --p3 starter --p4 starter --seed 42 | python3 -c 'import sys, json; d=json.loads(sys.stdin.read()); assert d[\"status_p0\"]==\"DONE\" and d[\"duration_sec\"]<60, d; print(\"PASS\", d)'"
+    expected_exit_code: 0
+    timeout_seconds: 120
+
+  - id: AC-5
+    description: 設計 doc が docs/research/2026-05-11-expansion-rule-design.md に存在し、 bovard 数値根拠 + 既存 mission 失敗モード + score 設計 + unit test 仕様を含む
+    type: output_exists
+    severity: required
+    path: docs/research/2026-05-11-expansion-rule-design.md
+
+  - id: AC-6
+    description: local 4P 1 ep smoke で step 100 時点の my_planets >= 3 (= top tier 5-7 の下限手前、 まだ完璧でなくても既存 1-2 から improvement)
+    type: manual_review
+    severity: recommended
+    rubric: |
+      reviewer agent が以下を確認:
+      - submissions/build_expansion_pure/main.py で 4P 1 episode (= vs starter x 3) 実行
+      - episode の step 100 (= 中盤) 時点で player 0 の owned planets 数を記録
+      - 達成: planets >= 3 (= 我家 既存 1-2 から improvement)
+      - bovard top tier の 5-7 には届かなくても、 expansion gap の方向性検証として PASS
+      - 既存 CaptureMission のみ build (= submissions/build_v2/main.py or konbu17_topk1) と AB 比較で planets 差を確認

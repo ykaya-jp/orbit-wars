@@ -21,18 +21,21 @@ START_TIME=$(date -Is)
 echo "=== PPO θ.4 真 PFSP training start ${START_TIME} ===" | tee "$OUTPUT_LOG"
 nvidia-smi --query-gpu=name,memory.free --format=csv,noheader | head -1 | tee -a "$OUTPUT_LOG"
 
+# Memory-safe config (= 15GB RAM、 1st run で OOM 観測後 縮小): n_envs 4 + 50k step
+# n_envs × n_steps = 4 × 512 = 2048 rollout/iter (= 元 8×256 と同サイズ)
+# pool-max 4 (= 元 8 から半減、 memory 抑制)
 uv run python -m tools.train_ppo_pfsp \
-    --total-timesteps 100000 \
-    --n-envs 8 \
-    --n-steps 256 \
-    --batch-size 128 \
+    --total-timesteps 50000 \
+    --n-envs 4 \
+    --n-steps 512 \
+    --batch-size 64 \
     --device cuda \
     --warm-start agents/proxy/ppo_v3_theta3.zip \
     --external-opponents agents/proxy/grid_il_lakhindar.py \
                          submissions/build_konbu_topk1/main.py \
                          submissions/build_rudra_topk1_proper/main.py \
-    --pool-max 8 \
-    --save-interval 10000 \
+    --pool-max 4 \
+    --save-interval 5000 \
     --pool-dir outputs/ppo_pfsp_pool_theta4 \
     --self-play-prob 0.6 \
     --external-prob 0.3 \

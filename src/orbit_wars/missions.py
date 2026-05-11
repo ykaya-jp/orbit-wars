@@ -867,3 +867,100 @@ class Dispatcher:
                 remaining[pid] -= pm.move.ships
 
         return actions
+
+
+# ============================================================================
+# ExpansionPriorityMission: Early-game rapid expansion (= bovard 280万 row 真因解)
+# ============================================================================
+
+
+class ExpansionPriorityMission(_BaseMission):
+    """早期 game (step <= early_game_steps) で nearby cluster を rapid expand する mission。
+
+    **真因解析根拠** (= ~/.claude/CLAUDE.md 2026-05-10 lesson, bovard 280万 row 分析):
+      - Top tier (kovi/Shun_PI) は step 100 で **5-7 planets / 300-430 ships**
+      - 我家 (Reexel/v2 系) は step 100 で **1-2 planets / 30-50 ships** (= 100倍劣後)
+      - 既存 CaptureMission の失敗モード: ROI 順に取得するが capacity gap で skip 多発、
+        取得時 ships ≈ 0 で post-capture garrison なし → 即 home 再利用不能
+
+    **解決策** (= 既存 CaptureMission との差分):
+      1. **early_game_steps 限定**: step > 早期 で score=0、 通常 CaptureMission に渡す
+      2. **capture_buffer 上げ**: ships_needed = enemy + 1 + capture_buffer (デフォ 8)
+         → 取得時 garrison ≥ 5 確保、 次 turn からの home 再利用が可能
+      3. **nearby cluster 優先**: 自 planet から max_distance 以内に限定
+         → 中央集権的 chain expansion で planets 数を線形増加
+      4. **score multiplier**: Capture の 2 倍で Dispatcher で先に ships 確保
+
+    Day 4 以降 P4 で Lakhindar IL + PPO θ.4 と meta-blend、 step-based switcher で
+    early game = この mission / mid-late = IL + RL の 3-paradigm 構成想定。
+    """
+
+    name = "expansion_priority"
+
+    def __init__(
+        self,
+        reserve: int = 5,
+        max_fraction: float = 0.85,
+        sun_safety_margin_deg: float = 2.0,
+        early_game_steps: int = 150,
+        max_distance: float = 35.0,
+        capture_buffer: int = 8,
+        score_multiplier: float = 2.0,
+    ):
+        super().__init__(reserve, max_fraction, sun_safety_margin_deg)
+        self.early_game_steps = early_game_steps
+        self.max_distance = max_distance
+        self.capture_buffer = capture_buffer
+        self.score_multiplier = score_multiplier
+
+    def _ships_needed(self, target: Planet) -> int:
+        """capture_buffer 上乗せで取得時 garrison を確保。"""
+        return target.ships + 1 + self.capture_buffer
+
+    def evaluate(self, state: GameState) -> tuple[float, list[Move]]:
+        self._maybe_new_episode(state)
+
+        # Early game 限定 — late game では通常 CaptureMission に任せる
+        if state.step > self.early_game_steps:
+            return 0.0, []
+
+        my = state.my_planets
+        if not my:
+            return 0.0, []
+
+        neutrals = [p for p in state.neutral_planets if p.id not in state.comet_planet_ids]
+        if not neutrals:
+            return 0.0, []
+
+        moves: list[Move] = []
+        score_total = 0.0
+
+        for mine in my:
+            cap = self._capacity(mine)
+            if cap <= 0:
+                continue
+
+            best: tuple[Planet, int, float] | None = None
+            best_roi = 0.0
+            for t in neutrals:
+                d = math.hypot(t.x - mine.x, t.y - mine.y)
+                if d > self.max_distance:
+                    continue
+                ships_needed = self._ships_needed(t)
+                if ships_needed > cap:
+                    continue
+                _angle, t_arr = physics.lead_angle_static(mine.x, mine.y, t.x, t.y, ships_needed)
+                roi_val = physics.roi(t.production, ships_needed, t_arr)
+                if roi_val > best_roi:
+                    best_roi = roi_val
+                    best = (t, ships_needed, t_arr)
+
+            if best is None:
+                continue
+
+            target, ships, _ = best
+            angle = self._aim_angle(mine, target, ships, state)
+            moves.append(Move(mine.id, angle, ships))
+            score_total += best_roi * self.score_multiplier
+
+        return score_total, moves
