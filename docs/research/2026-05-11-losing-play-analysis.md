@@ -91,3 +91,51 @@
 - Kaggle API: `kaggle competitions episodes <sub_id>`, `replay <ep_id>`
 - Top tier stats: `data/external/rank1_lakhindar` 25 ep kovi FFA 分析 (本日早朝)
 - 共通 CLAUDE.md §8.1 (= 「随時やれ」 ルール根拠)
+
+---
+
+## 重要更新 (10:45 JST 追加分析)
+
+### 'Reexel' は Kaggle 匿名 player name
+
+konbu17+topk1 (= LB 961.5、 我家 best of Day 2) の 5 episodes 解析で判明:
+- 5 episodes 全てに 'Reexel' が登場 → **Reexel は Kaggle が submission を匿名化したラベル**
+- 我家 5 submissions は全て 'Reexel' として記録される
+- PxlPau, tttlll030713, yktori, AnthonyTherrien, dan = 真の opponent name
+
+### 真の Day 2 win rate
+
+| Submission | LB | Wins (確認 episodes) |
+|---|---|---|
+| zachary | 600 | 4P FFA TIE 1/1 (= 全員 reward 1) |
+| rudra | 692 | 1/2 (= 50%、 vs Fedor Baart 等) |
+| bovard+topk1 | 679 | 1/2 (= 50%、 vs Mark Romanov) |
+| bovard+bowwow | 854 | 詳細未取得 |
+| **konbu17+topk1** | **961** | **4/5 (= 80%)** |
+
+### 勝因 pattern (= konbu17+topk1 5 episodes)
+
+| game | 我家 avg ship | opp avg ship | ratio | 結果 |
+|---|---|---|---|---|
+| 76265744 (vs PxlPau) | **71.4** | 20.6 | 3.5x | WON |
+| 76265518 (vs tttlll030713) | 27.6 | **46.2** | 0.6x | **LOST** |
+| 76265287 (vs yktori) | **47.0** | 38.1 | 1.2x | WON |
+| 76265051 (vs AnthonyTherrien) | **53.4** | 17.2 | 3.1x | WON |
+| 76264837 (vs dan) | **40.4** | 35.8 | 1.1x | WON |
+
+**仮説 H5 確証**: **大艦隊維持 (= avg ship size 我家 > opp) = 勝利の primary 因子**
+
+→ **topk1 wrapper の効果**: konbu17 hybrid base が出す多数 launch から **最大 ships の move のみ残す** ことで艦隊サイズ平均を上げている (= 71/47/53/40 → 全部 30+)
+
+これは Lakhindar (kovi) "少打 + 大艦隊" 戦略と整合:
+- kovi 1v1: 0.10 launch/step, avg 27 ships → 大艦隊厳選
+- 我家 konbu17+topk1: launch 数は同等 (132/167 step ≈ 0.79/step) だが**大艦隊化**で勝率 80%
+- 我家 rudra 単体 (= LB 692): launch 134/127 ≈ 1.0/step + ship 18 = 中途半端
+
+### Day 3 derived strategy
+
+1. **konbu17 + bovard validator + topk1** (= 5/10 best 989 base + topk1 を再 submit) ← 最重要 (matchmaking trap escape + 大艦隊保証)
+2. **topk2 / topk3 variants** (= 2-3 largest moves 残す、 多戦線対応)
+3. **rudra + topk1 wrapper** (= rudra base に topk1 適用、 公開 LB 1049 base + 大艦隊化で 1100+ 期待)
+4. **PPO θ.2 (進行中)** が完了したら 5/5 submit 1 件
+5. **safety net**: 既存 LB best (= submission_v2.tar.gz, LB 989/1017) 再 submit
