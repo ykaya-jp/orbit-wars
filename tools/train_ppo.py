@@ -84,6 +84,19 @@ def make_random_opponent():
     return random_agent
 
 
+def make_file_opponent(path: str):
+    """Load an agent from a .py file as opponent (= for curriculum mix)."""
+    import importlib.util
+    import sys as _sys
+
+    mod_name = f"_opp_{Path(path).stem}_{abs(hash(path)) % 100000}"
+    spec = importlib.util.spec_from_file_location(mod_name, path)
+    mod = importlib.util.module_from_spec(spec)
+    _sys.modules[mod_name] = mod  # required for dataclasses inside the module
+    spec.loader.exec_module(mod)
+    return mod.agent
+
+
 def mask_fn(env) -> np.ndarray:
     """Per-cell × per-action mask (= 4096×81 = 331776 bool)."""
     inner = env
@@ -112,15 +125,37 @@ def main() -> int:
     ap.add_argument("--output", default="agents/proxy/ppo_v1.zip")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reward-shaping", action="store_true", help="enable step-wise rewards")
+    ap.add_argument(
+        "--opponents",
+        nargs="+",
+        default=["random"],
+        help="opponent specs: 'random' or path to .py with `agent` function. "
+        "If <3 specs given, randomly sample to fill 3 opponent slots per env.",
+    )
     args = ap.parse_args()
 
     print(f"PPO: {args.total_timesteps} steps, {args.n_envs} envs, device={args.device}")
+    print(f"  opponents pool: {args.opponents}")
+
+    # Pre-load opponent functions
+    opponent_pool: list = []
+    for spec in args.opponents:
+        if spec == "random":
+            opponent_pool.append(("random", None))
+        else:
+            opponent_pool.append((spec, make_file_opponent(spec)))
+
+    def sample_opponents() -> list:
+        """Sample 3 opponents from pool (with replacement if pool < 3)."""
+        import random as _random
+
+        sampled = _random.choices(opponent_pool, k=3)
+        return [make_random_opponent() if name == "random" else fn for name, fn in sampled]
 
     def env_factory(rank: int):
         def _f():
-            opps = [make_random_opponent() for _ in range(3)]
             env = OrbitWarsEnv(
-                opponents=opps,
+                opponents=sample_opponents(),
                 seed=args.seed + rank * 1000,
                 episode_steps=500,
                 terminal_reward_only=not args.reward_shaping,
