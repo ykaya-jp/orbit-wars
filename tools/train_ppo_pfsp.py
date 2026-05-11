@@ -332,58 +332,40 @@ def main() -> int:
     )
 
     if args.warm_start:
-        print(f"  loading warm-start weights from {args.warm_start}")
-        # sb3 version mismatch workaround: FloatSchedule/LinearSchedule rename + SIGSEGV on
-        # full deserialize across sb3 major versions (= θ.3 zip saved with old sb3 →
-        # full load crashes Colab sb3 2.8.0). Fallback: create fresh MaskablePPO and
-        # load `policy.pth` state_dict only (= weights-only warm-start, no optimizer state).
-        custom_objects = {
-            "lr_schedule": lambda _: args.learning_rate,
-            "clip_range": lambda _: 0.2,
-        }
-        try:
-            model = MaskablePPO.load(
-                args.warm_start,
-                env=venv,
-                device=args.device,
-                seed=args.seed,
-                learning_rate=args.learning_rate,
-                ent_coef=args.ent_coef,
-                custom_objects=custom_objects,
-            )
-            print("  full load OK")
-        except Exception as exc:
-            print(f"  full load failed: {exc}")
-            print("  fallback: create fresh model + load policy.pth state_dict only")
-            import io
-            import zipfile
-            import torch as _torch
+        # ALWAYS bypass MaskablePPO.load() full deserialize (= sb3 major version mismatch
+        # で SIGSEGV in C ext を try/except でも catch 不可。 weights-only load で確実。)
+        # 結果: policy weights は IL pretrain 維持、 optimizer state は fresh。
+        print(f"  loading warm-start weights from {args.warm_start} (weights-only mode)")
+        import io
+        import zipfile
+        import torch as _torch
 
-            model = MaskablePPO(
-                MaskableMultiInputActorCriticPolicy,
-                venv,
-                learning_rate=args.learning_rate,
-                n_steps=args.n_steps,
-                batch_size=args.batch_size,
-                n_epochs=args.n_epochs,
-                gamma=args.gamma,
-                gae_lambda=args.gae_lambda,
-                ent_coef=args.ent_coef,
-                policy_kwargs=policy_kwargs,
-                device=args.device,
-                verbose=1,
-                seed=args.seed,
-            )
-            with zipfile.ZipFile(args.warm_start) as zf:
-                with zf.open("policy.pth") as pf:
-                    sd = _torch.load(io.BytesIO(pf.read()), map_location=args.device, weights_only=True)
-            # state_dict shape mismatch でも load させる (= strict=False)、 不一致 key は print
-            missing, unexpected = model.policy.load_state_dict(sd, strict=False)
-            if missing:
-                print(f"  [warn] missing keys: {len(missing)} (first 3: {missing[:3]})")
-            if unexpected:
-                print(f"  [warn] unexpected keys: {len(unexpected)} (first 3: {unexpected[:3]})")
-            print("  policy weights loaded (= partial warm-start, optimizer state fresh)")
+        model = MaskablePPO(
+            MaskableMultiInputActorCriticPolicy,
+            venv,
+            learning_rate=args.learning_rate,
+            n_steps=args.n_steps,
+            batch_size=args.batch_size,
+            n_epochs=args.n_epochs,
+            gamma=args.gamma,
+            gae_lambda=args.gae_lambda,
+            ent_coef=args.ent_coef,
+            policy_kwargs=policy_kwargs,
+            device=args.device,
+            verbose=1,
+            seed=args.seed,
+        )
+        with zipfile.ZipFile(args.warm_start) as zf:
+            with zf.open("policy.pth") as pf:
+                sd = _torch.load(
+                    io.BytesIO(pf.read()), map_location=args.device, weights_only=True
+                )
+        missing, unexpected = model.policy.load_state_dict(sd, strict=False)
+        if missing:
+            print(f"  [warn] missing keys ({len(missing)}): {missing[:3]}...")
+        if unexpected:
+            print(f"  [warn] unexpected keys ({len(unexpected)}): {unexpected[:3]}...")
+        print("  policy weights loaded successfully")
     else:
         model = MaskablePPO(
             MaskableMultiInputActorCriticPolicy,
