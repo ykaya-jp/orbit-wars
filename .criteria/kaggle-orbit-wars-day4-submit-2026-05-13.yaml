@@ -1,0 +1,107 @@
+task_id: kaggle-orbit-wars-day4-submit-2026-05-13
+goal: |
+  Day 3 LB datapoint 反映 (= 5/12 18:00 JST 以降) を踏まえ、 5/13 09:00 JST reset 後の Day 4 submit 5 件を実行。
+  Day 3 で延期した Lakhindar IL (= IL paradigm 生死判明) + end-game pile-up (= Tier 3 #4 exploit) +
+  Expansion rule mission (= P3) + 公開 kernel fork (= paradigm 多様化) を組み合わせて、 LB 1300+ 目標。
+
+  **SKELETON**: 数値 / file 確定は Day 3 LB 反映後 (= 5/12 18:00 JST 以降) に最終化。
+  Day 3 で fleet_angle_zachary が高 LB 出した場合は best 再 submit を Day 4 slot 1 で safety。
+
+context:
+  branch: main
+  spec: docs/strategy/2026-05-11-score-2000-roadmap.md (= P5 phase = LB 1500+ 到達目標)
+  related:
+    - "docs/research/2026-05-11-engine-audit.md (= 5 exploit candidate)"
+    - "docs/strategy/2026-05-11-victory-roadmap.md (= P5 phase)"
+    - ".criteria/kaggle-orbit-wars-day3-submit-2026-05-12.yaml (= 前 Day plan)"
+  preconditions:
+    - "Day 3 submit 5 件完了 (= AC-6 of Day 3 plan)"
+    - "Day 3 LB initial 反映 + submission-analyses.md 埋め (= 5/12 18:00 JST)"
+    - "ratio drift σ < 0.02 確認 OR re-calibrate"
+
+deliverables:
+  - path: tools/day4_submit.sh
+    purpose: Day 4 submit 5 件 orchestration (= Day 3 best + fleet_angle_v2 + lakhindar + expansion + orbitwork)
+  - path: docs/research/2026-05-13-submission-analyses.md
+    purpose: Day 4 LB 反映 30 分以内 append 用 doc (schema 雛形、 値は 5/13 09:30 以降)
+  - path: tools/smoke_day4.sh
+    purpose: Day 4 submit 5 件分の local smoke (= Kaggle 互換性確認)
+
+baseline:
+  - metric: lb_best_after_day3
+    value: TBD
+    note: "Day 3 LB 反映後最終化、 期待 1100-1300 (= fleet_angle_zachary が 真因解消で +500)"
+  - metric: paradigms_submitted_to_lb
+    value: TBD (Day 3 後)
+  - metric: days_remaining_to_deadline
+    value: 41
+  - metric: ratio_drift_sigma
+    value: TBD (Day 3 後 5 submit で計算)
+
+out_of_scope:
+  - P2 PPO θ.4 真 PFSP training (= Colab Pro+ 完走後、 Day 5+ plan)
+  - P4 3-paradigm meta-agent (= Day 8-15 plan)
+  - Tier 3 #1 Let-them-fight / #2 1-ship sniper / #3 Multi-fleet decoy (= Day 5+ で実装)
+  - bowwowforeach reverse engineer (= 棄却済)
+
+risks:
+  - "Day 3 で fleet_angle_zachary が想定外 dead (LB ≤ 800) → 真因解析と再 calibrate、 v2 end-game pile-up を slot 2 のままで singularity 検証"
+  - "Lakhindar IL slot 3 が再び 4P 0/8 系の dead → IL paradigm 棄却決断、 P4 meta-agent から IL 除外"
+  - "build_orbitwork_v14 (= 公開 kernel claim LB 1050) が我家 environment で 700 帯 → public kernel transfer 失敗の追加 datapoint"
+  - "end-game pile-up が vs strong opponent で逆効果 (= 守備手薄で midgame 死亡) → step trigger を 460 → 480 に上げる + AC で AB test"
+  - "Day 3 で 1 slot 失敗 (= ERROR / TIMEOUT) → Day 4 で safe slot に submission_v2 再々 submit"
+
+acceptance_criteria:
+  - id: AC-1
+    description: docs/strategy/2026-05-11-score-2000-roadmap.md が存在 (= Tier 1-3 path 確定済)
+    type: output_exists
+    severity: required
+    path: docs/strategy/2026-05-11-score-2000-roadmap.md
+
+  - id: AC-2
+    description: build_fleet_angle_zachary_v2 (= end-game pile-up) submit-ready package
+    type: output_exists
+    severity: required
+    path: submissions/build_fleet_angle_zachary_v2/main.py
+
+  - id: AC-3
+    description: build_lakhindar_pure (= Day 3 延期分、 IL paradigm 生死判明用)
+    type: output_exists
+    severity: required
+    path: submissions/build_lakhindar_pure/main.py
+
+  - id: AC-4
+    description: build_expansion_pure (= P3 = Expansion rule mission)
+    type: output_exists
+    severity: required
+    path: submissions/build_expansion_pure/main.py
+
+  - id: AC-5
+    description: tools/day4_submit.sh が Day 4 5 件構成に起票されている (= Day 3 LB 反映後に slot 1 を data driven 選択)
+    type: manual_review
+    severity: required
+    rubric: |
+      reviewer agent が以下を確認:
+      - tools/day4_submit.sh が新規作成され、 5 件 submit を実行
+      - slot 1 = Day 3 best 再 submit (= 24h resample TrueSkill 安定)
+      - slot 2 = build_fleet_angle_zachary_v2 (= end-game pile-up Tier 3 #4)
+      - slot 3 = build_lakhindar_pure (= IL paradigm 生死判明)
+      - slot 4 = build_expansion_pure (= P3 rule mission)
+      - slot 5 = build_orbitwork_v14 or Day 3 で良かった variant (= data driven)
+      - Day 3 LB 反映を反映した expected LB が各 slot に記載
+
+  - id: AC-6
+    description: Day 4 submit window (= 5/13 09:00 JST 以降) で 5 件 submit + 30 分以内に LB initial を submission-analyses.md に append
+    type: manual_review
+    severity: required
+    rubric: |
+      Day 3 plan の AC-6 と同形式: 5 件 submit ID + Initial LB + Expected + Diff + Ratio が表化されている、
+      各 source の effect isolation 表記述、 出典あり
+
+  - id: AC-7
+    description: ratio drift 監視 (= Day 3 + Day 4 で計 10 submit、 σ 計算)
+    type: manual_review
+    severity: recommended
+    rubric: |
+      docs/research/<date>-local-vs-lb-correlation.md (= 新規 or 既存) で 10 submit の ratio (LB/expected) σ 計算、
+      σ < 0.02 ならstable、 σ > 0.02 なら次 Day で expected LB 公式 (= local 4P × 800-900) を再 calibrate
