@@ -123,6 +123,11 @@ def agent(observation, configuration=None):
             #   - prefer short distance (close = arrive before counter)
             #   - penalise garrisoned defenders
             #   - bonus for neutrals (cheap capture)
+            # Note: AB experiment in night session showed adding own-target
+            # reinforcement here regressed 3/8 -> 2/8 -- AlphaOrbit's 68%
+            # own-target rate works for them because they have 14+ planets by
+            # step 100; we have 2, so any ships shipped sideways are ships
+            # NOT shipped at a fresh neutral. Keep external-only for now.
             best = None
             best_score = -float("inf")
             for tpid, towner, tx, ty, tships, tprod in targets:
@@ -136,10 +141,8 @@ def agent(observation, configuration=None):
                     best_score = score
                     best = (tpid, tx, ty, tships, tprod, towner)
 
-            # Friendly reinforcement: if no external target makes sense, ship
-            # half the surplus to the lowest-garrison own planet on the front line.
+            # Friendly reinforcement fallback (= only if no external target).
             if best is None and len(my_planets) >= 2:
-                # find own planet with smallest ships within reach
                 front = None
                 front_score = float("inf")
                 for tpid, tx, ty, tships, tprod in my_planets:
@@ -148,7 +151,6 @@ def agent(observation, configuration=None):
                     dist = math.hypot(tx - x, ty - y)
                     if dist > 50.0:
                         continue
-                    # Prefer high-prod own planets that look low on ships
                     fscore = tships - 2.0 * tprod
                     if fscore < front_score:
                         front_score = fscore
