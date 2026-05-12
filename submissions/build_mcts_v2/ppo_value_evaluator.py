@@ -62,7 +62,11 @@ def _weight_only_load(model_path: str | Path, device: str = "cpu"):
     for k, v in list(policy_state.items()):
         if hasattr(v, "is_floating_point") and v.is_floating_point() and v.dtype == torch.float16:
             policy_state[k] = v.float()
-    model.policy.load_state_dict(policy_state, strict=False)
+    missing, unexpected = model.policy.load_state_dict(policy_state, strict=False)
+    if missing:
+        raise RuntimeError(f"PPO load: missing policy keys: {sorted(missing)[:8]}")
+    if unexpected:
+        raise RuntimeError(f"PPO load: unexpected policy keys: {sorted(unexpected)[:8]}")
     model.policy.eval()
 
     if pytorch_variables is not None:

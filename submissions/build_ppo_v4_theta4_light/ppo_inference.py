@@ -70,7 +70,13 @@ def _weight_only_load(model_path, device="cpu"):
     for k, v in list(policy_state.items()):
         if hasattr(v, "is_floating_point") and v.is_floating_point() and v.dtype == torch.float16:
             policy_state[k] = v.float()
-    model.policy.load_state_dict(policy_state, strict=False)
+    # strict=False would silently drop missing / unexpected keys -- catch any
+    # divergence and raise so we don't ship a half-loaded value head.
+    missing, unexpected = model.policy.load_state_dict(policy_state, strict=False)
+    if missing:
+        raise RuntimeError(f"PPO load: missing policy keys (value head may be uninitialised): {sorted(missing)[:8]}")
+    if unexpected:
+        raise RuntimeError(f"PPO load: unexpected policy keys (zip schema drift): {sorted(unexpected)[:8]}")
     model.policy.eval()
     return model
 
