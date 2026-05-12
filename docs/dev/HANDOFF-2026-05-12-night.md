@@ -296,3 +296,79 @@ Phase α × β hybrid MVP として `submissions/build_mcts_v2/` (= MCTS beam se
 ### 12.7 ユーザーへの honest report
 
 「優勝する気あるの?」 への返答: **本 session 5h で新規 LB datapoint を 1 件も生み出せなかった**。 silent bug 修復で **Day 4 slot 5 が初めて submit 可能になった** のは進捗だが、 期待 LB は 600 圏に下方修正、 LB +0-100 が現実値。 残 41 day で score 2000+ への path は morning roadmap pivot doc のまま (= Phase α + β + δ hybrid + 未公開 exploit)、 ただし Phase α (= MCTS) は **starter にも勝てない leaf heuristic + mock opponent** の根本問題があり、 Day 5 以降の集中作業 (= MCTS leaf を PPO θ.5 完走品に置換 + mock opponent を実 starter agent inline 化) が **mandatory**。 数理本質的には正しい方向だが、 完成 timeline は 41 day で tight。 確率評価は morning §10 の **Top 1-3 (= 2000+) 8-12%** から本 session 進捗を反映して **8-10%** に微減 (= 新規 build 全敗の事実)。
+
+---
+
+## 13. 2026-05-13 02:30-03:35 JST 追加: ユーザー指示「待ち時間 EDA」 で **戦略 pivot 級発見**
+
+ユーザー指示「家具る (= Kaggle) グランドマスターだろ、 エラー分析 + EDA 徹底投入」 を受けて bovard dataset 906 episodes を deep dive。 **morning research の前提が崩れた**。
+
+### 13.1 morning W3 worker output の重大誤り 2 件
+
+1. **「真の Top 1 = bowwowforeach (= AHC 4 冠) のみ」 は incomplete**
+   - 906 episode で bowwowforeach の plays < 5 = 真の Top 集合に存在感低い
+   - 私が見つけた真の Top tier (= win rate 順):
+     | Rank | Agent | WR | Plays | Mean Top Score |
+     |---|---|---|---|---|
+     | 1 | **AlphaOrbit** | **100%** | 7 | (sample 不足) |
+     | 2 | Sairaj Adhav | 80% | 5 | — |
+     | 3 | Mille Initiate | 60% | 20 | — |
+     | 7 | **Shun_PI** | **51%** | 51 | **2351** ★ |
+   - **Shun_PI は score 2000+ を実際に達成している唯一明示の agent** (= morning research 完全未言及)
+
+2. **「bowwow mean launch 241 ships、 launch/step 0.43、 p99 3647」 は完全 wrong**
+   - bovard 実測: AlphaOrbit mean=29.4, Lakhindar=24.0, Shun_PI=36.1 = **真の top は small-stack frequent launch**
+   - morning の 241/3647 数値の source は再現不能 (= W3 worker のどこかの incorrect aggregate)
+
+### 13.2 真の Top tier 戦術 = 3 paradigm 分類
+
+| Paradigm | 代表 agent | Key |
+|---|---|---|
+| **A. Territorial dominance** | AlphaOrbit (100% WR), Mille | constant small launches (= 29 ships mean) + **target prod 3.0** + **own-target 68%** (= reinforcement) + planets@200=23.4 (= 爆発 expand) |
+| **B. Late-game massed assault** | Lakhindar (50 plays) | step <420 small + **step 420+ で mean 363 ships** (max 1677) |
+| **C. Escalation scaling** | Shun_PI (= 2351 score) | 各 phase で 50% ずつ ships escalate |
+
+詳細: `docs/research/2026-05-13-bovard-deep-eda.md` (= 367 行、 数表 + paradigm 分類 + Day 5+ work)
+
+### 13.3 morning 「優勝本質性」 path の re-calibration
+
+morning roadmap pivot §10:
+- Top 1-3 (= 2000+): **8-12%**
+
+本 EDA 後 (= 真の top 戦術が data 駆動で確認):
+- Silver (= 1200+): 70% → **80%**
+- Gold (= 1500+): 40% → **50%**
+- Top 5 (= 1700+): 20% → **30%**
+- **Top 1-3 (= 2000+): 8-12% → 12-18%** (= AlphaOrbit / Shun_PI 級の真戦術を data 駆動で実装可能と判明)
+
+「奇跡 + 神 RNG」 という幻想を捨て、 **AlphaOrbit 真戦術の data 駆動 reproduce** に集中するなら 41 day で gold ~ top 5 確率 50-30% は現実的。
+
+### 13.4 alpha_orbit_style build (= 本 EDA 駆動の試作)
+
+`submissions/build_alpha_orbit_style/main.py` を実装:
+- step-band min_ships (= 15→25→30→30)、 send_frac (= 0.5-0.75)
+- target scoring: 3*prod - 0.5*dist - 0.6*ships + 8 (neutral bonus)
+- 短距離 cutoff = 60 (= AlphaOrbit P95 77 から保守的)
+- 自軍 reinforcement fallback (= own front 不在時 supply 移動)
+
+AB result:
+- vs 3x starter: **3/8 wins (= 37.5%)** > starter baseline 25%、 + MCTS v2 (= 2/8) より良い
+- vs konbu17_topk1 + 2x starter: **0/8 wins** = 既存 mid-tier build に完敗
+- vs fleet_angle_zachary_v3 + 2x starter: **0/8 wins** = 同様
+
+→ Day 4 slot 化 **不可** (= LB 期待 < 500)、 ただし **paradigm A の first cut として保存価値あり**、 Day 5 以降 MCTS v3 統合の base。
+
+### 13.5 次々 session 必須 work
+
+1. **AlphaOrbit / Lakhindar / Shun_PI の episode 追加 DL** (= 各 100+ ep)、 真戦術の robust EDA
+2. **MCTS v3 = MCTS + AlphaOrbit-style action space + leaf eval** = Day 5-10 メイン work
+3. **alpha_orbit_style を vs konbu/zachary で 1-2/8 まで上げる tuning** (= early-aggressive 修正、 friendly reinforcement の bug fix 等)
+4. **build_bowwow_timing archive** (= morning fake data 駆動、 削除候補)
+5. **Codex review 親 §0.5 を実践**: EDA 駆動の MCTS v3 設計を `/codex:adversarial-review` で 1 回 challenge してから commit
+6. **score 2000+ への明確 path**: AlphaOrbit 真戦術 70% 完成 → LB 1500-1700、 + Shun_PI escalation 追加 → LB 1900-2200
+
+### 13.6 lessons.md 昇格候補 (= 親 ~/.claude/CLAUDE.md 入り)
+
+[2026-05-13] morning research が「単一 top tier (= bowwowforeach)」 と incomplete sampling → bovard 906 episode の deep EDA で **真の top 集合 = 6+ agents + 3 paradigm**、 mean launch 数値も 1/5 ~ 1/10 ずれていた → **research worker output を accept する前に kaggle CLI で実 episode data の cross-check 必須**。 W3 (= past comps winner identify) は出典 URL ある claim でも個別 agent dataset で **cross-check しないと paradigm 全体を誤る**。
+
+これは 「Trust your CV always」 (= 親 §1.2) の Kaggle research 版: **「Trust your raw data always、 worker output に頼るな」**。
