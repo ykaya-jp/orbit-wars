@@ -213,3 +213,86 @@ Cleanup は θ.5 完走後 (= 5/13 09:00 JST 以降 or 5/14) deferred。
 ---
 
 End of night handoff. **次 session = 5/13 朝の cold start で §6 「即 action 7 step」 を順に実行**。 本 doc + morning pivot doc + day4 criteria yaml を read すれば full continuation 可能。
+
+---
+
+## 12. 2026-05-13 00:00-02:15 JST 追加 session: silent bug 発見 + 修復 + 探索の限界確認
+
+ユーザーから「優勝する気あるの?」 と問われ、 night admin work から本質 work へ pivot。 5h 計画で **Phase α × β hybrid MVP** に着手したが、 過程で **重大な silent bug** を発見、 修復した。 新規 build の vs starter 勝率は 0-1/8 で **LB datapoint 化できる強さに到達せず**、 Day 4 slot 構成は変更なし (= 既存 day4_submit.sh のまま) とする判断。
+
+### 12.1 重大 silent bug 発見 (= 朝の Phase β.1 claim が validation 不在)
+
+朝の commit `4734b87 feat(phase-beta-1)` で「PPO lightweight 64.5MB submit-ready、 smoke 5/5 PASS」 を claim、 morning pivot doc §4 にも反映。 実態:
+
+1. **`__file__` undefined**: `kaggle_environments` は agent.py を **`exec()`** で読込む = `__file__` 名前は inject されない。 `_HERE = Path(__file__).resolve().parent` が `NameError`、 main.py の try/except 全体が silent fallback → `_PPO_VALUE_FN = None` → 空 action 返却。
+2. **sb3 optimizer 必須**: `MaskablePPO.load()` は zip 内の `policy.optimizer` state を expect。 `build_ppo_lightweight.py` で drop してたから `KeyError: 'policy.optimizer'`。
+3. **smoke の見せかけ PASS**: smoke_day4.sh の判定は `status_p0=DONE` のみ。 空 action でも env は max 500 step まで進めて DONE 返す。 duration 1.4s = handcrafted-only と区別不能。
+
+→ つまり Day 4 slot 5 として submit していたら **0 score reject ではなく "agent 動いてるが何もしない" で LB ~300-500 が出る** = 親 CLAUDE.md §11.2 #5 「noise 範囲 submit 価値ゼロ」 violation。
+
+### 12.2 修復 (= commit `1fc7cb0 fix(submit): build_ppo_v4_theta4_light silent load failure`)
+
+3 段重ね fix:
+
+- **`__file__` fallback**: `try: _HERE = Path(__file__).resolve().parent / except NameError: _HERE = cwd / "submissions/build_..."` で local smoke / production tar.gz 両対応
+- **weight-only load**: `load_from_zip_file()` で raw `data, params, pytorch_variables` を取得 → `MaskablePPO(env=None, _init_setup_model=False)` で空モデル → `policy.load_state_dict(params["policy"], strict=False)` で weight だけ copy、 optimizer 完全 skip
+- **train_ppo stub**: build dir 内に `train_ppo.py` (= `GridFeatureExtractor` class のみ 50 行) を同梱、 cloudpickle が pickled policy class を resolve できるよう sys.path 解決
+
+修復後 smoke で duration 1.4s → 7.1s に増加 = PPO inference が実走、 vs 3x starter で 0/4 wins (= θ.4 200k step は **starter にも勝てない**、 朝の期待 LB 1100-1400 は **下方修正必須 ≈ 600 圏**)。
+
+### 12.3 探索の限界: MCTS v2 / bowwow timing v2 とも Day 4 不適格
+
+Phase α × β hybrid MVP として `submissions/build_mcts_v2/` (= MCTS beam search + PPO θ.4 leaf value evaluator + step-dependent prune + multi-source action combo) を実装。 vs 3x starter で:
+
+| build | vs 3x starter wins / 8 | duration / ep | 解釈 |
+|---|---|---|---|
+| MCTS v0 (= morning) | 0 / 8 | 1.4s | leaf eval 線形のみ、 1-launch combo only |
+| MCTS v2 (= PPO + multi-source) | 0 / 8 | 8-15s | PPO inference active、 multi-source combo 評価しても勝てず |
+| bowwow timing v1 (= bovard data 直 mapping) | 1 / 8 | 1-3s | timing gating で長期戦化、 全 -1 tie 多発 |
+| bowwow timing v2 (= early aggressive 修正) | 1 / 8 | 1-3s | 改善せず |
+
+= **vs starter で 4/8+ に到達不可**、 Day 4 slot 化基準 (= 親 §11.2 #5 datapoint 価値) を満たさない。
+
+仮説 (= 完全検証なし、 deferred):
+- mock_opponent (= starter-like 半 launch) が **真の starter より弱い** → sim 内最適は real env 不適
+- PPO V(s) は θ.4 が bowwow-style opponent で training された結果、 **starter-expand-greedy** state を正しく評価できていない
+- sim の physics (= forward Euler + sun safety 簡略) と engine の divergence が depth 3 でも蓄積
+
+### 12.4 Day 4 slot 構成 最終確定 (= 変更なし)
+
+`tools/day4_submit.sh` の 5 slot は **morning から変更なし**、 ただし slot 5 = ppo_v4_theta4_light は **修復済 build に置換**:
+
+1. Day 3 best resubmit (= 24h drift calibrate、 09:30 LB 反映後 DAY3_BEST_FILE override 判定)
+2. fleet_angle_zachary_v3 (= main rule paradigm)
+3. fleet_angle_zachary_v5 (= bovard 数値駆動 ablation)
+4. marcodg_topk1 (= 別 paradigm)
+5. **ppo_v4_theta4_light** ★ (= **silent bug fix 後の 65 MB tar.gz**、 期待 LB **下方修正 ≈ 600 圏** だが 100 MB cap 実証 + RL paradigm 1st datapoint)
+
+新規 build (= bowwow_timing / mcts_v2) は Day 5 以降の improvement 経由で再評価、 Day 4 slot には含めない。
+
+### 12.5 ✅ 完了 / ⏳ Day 4 reset 待ち
+
+**完了**:
+- `submissions/build_ppo_v4_theta4_light/` silent bug 完全修復 (= `1fc7cb0`)
+- `submissions/ppo_v4_theta4_light.tar.gz` rebuild (= 65 MB、 PPO inference active 確認、 smoke duration 7.1s)
+- `tools/mcts_orbit_wars.py` v2 拡張 (= PPO leaf hook + step_dependent_prune + multi-source action combo)
+- `submissions/build_mcts_v2/` 完全実装 (= weight-only PPO load + state_to_pseudo_obs bridge)
+- `submissions/build_bowwow_timing/` 実装 (= 4-phase step policy)
+
+**Day 4 reset (= 5/13 09:00 JST) 待ち**:
+- `bash tools/day4_submit.sh` で 5 slot 投入 (= 09:30 LB 反映後 override 判定)
+- 09:30 JST に `docs/research/2026-05-13-submission-analyses.md` append (= 親 §8.1 #9)
+- 特に **PPO light が submit reject されないこと** を確認 = 100 MB cap 仮説実証
+
+### 12.6 教訓 (= postmortem `docs/postmortem/2026-05-13-ppo-light-silent-bug.md` 起票候補)
+
+1. **smoke の合格判定が浅すぎた**: `status_p0=DONE` だけでは「agent が何もしないで env が timeout 完走」 と区別不能。 expected duration / step variance を入れるべき
+2. **silent except の組合せが silent bug を生む**: `try: PPO load except Exception: fallback=None` と `try: agent(obs) except: return []` が重なると、 load fail も runtime error も同じ「empty action」 に潰れる → log 不在
+3. **真値 vs 表面 PASS の混同**: smoke PASS = agent 仕様が正しい、 ではない。 「PPO が実 inference してるか」 は internal state probe (= `_PPO_VALUE_FN is not None`) で別途 verify 必要
+4. **完了 claim を `code-reviewer` でなく自分で出した**: 親 `~/.claude/rules/codex-integration.md` は Codex 一次 review を mandate していたが、 morning pivot 完了報告では Codex review を skip した = 同じ silent bug が Codex review でも検出可能だったか不明だが、 review pass 通さず claim 出した時点で discipline violation
+
+これらは `~/.claude/CLAUDE.md` lessons.md への昇格候補 (= 5 件溜まったら昇格ルール、 §11.4)。
+
+### 12.7 ユーザーへの honest report
+
+「優勝する気あるの?」 への返答: **本 session 5h で新規 LB datapoint を 1 件も生み出せなかった**。 silent bug 修復で **Day 4 slot 5 が初めて submit 可能になった** のは進捗だが、 期待 LB は 600 圏に下方修正、 LB +0-100 が現実値。 残 41 day で score 2000+ への path は morning roadmap pivot doc のまま (= Phase α + β + δ hybrid + 未公開 exploit)、 ただし Phase α (= MCTS) は **starter にも勝てない leaf heuristic + mock opponent** の根本問題があり、 Day 5 以降の集中作業 (= MCTS leaf を PPO θ.5 完走品に置換 + mock opponent を実 starter agent inline 化) が **mandatory**。 数理本質的には正しい方向だが、 完成 timeline は 41 day で tight。 確率評価は morning §10 の **Top 1-3 (= 2000+) 8-12%** から本 session 進捗を反映して **8-10%** に微減 (= 新規 build 全敗の事実)。

@@ -537,16 +537,34 @@ class BeamNode:
 
 
 def _action_combos(actions: list[Action], cfg: BeamConfig) -> list[list[Action]]:
-    """Cheap branching: enumerate up to ``beam_width`` single-launch combos.
+    """Branch the beam with a mix of single-launch and multi-source combos.
 
-    Each combo is at most one launch (= bowwow-style: pick *the* best move
-    each turn, not multi-source). A "no-op" combo is always included.
+    Pure single-launch beam (the v0 default) lets a multi-planet starter
+    out-expand us: each of their planets fires every turn while we wait for
+    one big stack. We add a "fire from every source we can" combo so the
+    beam can evaluate multi-source plans head-to-head with conservative
+    big-stack timing plans.
     """
     combos: list[list[Action]] = [[]]
-    # sort by approximate priority: bigger send + closer target = better
     actions_sorted = sorted(actions, key=lambda a: (-a.send_ships, a.eta))
-    for act in actions_sorted[: cfg.beam_width - 1]:
+
+    # Reserve half the beam for diverse single-launch plans.
+    single_slots = max(1, cfg.beam_width // 2)
+    for act in actions_sorted[:single_slots]:
         combos.append([act])
+
+    # "Fire-from-all" combo: take the best action per source planet.
+    by_src: dict[int, Action] = {}
+    for act in actions_sorted:
+        by_src.setdefault(act.src_pid, act)
+    if len(by_src) >= 2:
+        combos.append(list(by_src.values()))
+
+    # Top-2-source combo: only fire from the two strongest sources.
+    if len(by_src) >= 3:
+        top2 = sorted(by_src.values(), key=lambda a: -a.send_ships)[:2]
+        combos.append(top2)
+
     return combos
 
 

@@ -50,21 +50,18 @@ _CFG = BeamConfig(
     leaf_delta=8.0,
     terminal_bonus=1000.0,
     max_top_actions_per_step=50,
-    # Scale calibration: handcrafted is ~50-400 mid-game (alpha*planets ~30,
-    # beta*ships ~200) and V(s) is in [-1, +1]. Setting ppo_value_weight=400
-    # roughly equalises their magnitudes so the PPO head genuinely steers the
-    # top-K choice rather than being washed out by handcrafted noise.
-    handcrafted_weight=0.0,
-    ppo_value_weight=1.0,
-    leaf_top_k_ppo=24,
-    min_launch_early=15,
-    min_launch_late=60,
+    # Hybrid: PPO V(s) is in [-1, +1] and handcrafted is ~50-400 mid-game.
+    # ppo_value_weight=200 matches their magnitudes so PPO actually steers
+    # the top-K choice rather than being washed out by handcrafted noise.
+    handcrafted_weight=1.0,
+    ppo_value_weight=200.0,
+    leaf_top_k_ppo=8,
     step_dependent_prune=True,
     phase_mid_start=50,
     phase_late_start=300,
-    min_launch_early=30,
-    min_launch_mid=100,
-    min_launch_late=100,
+    min_launch_early=15,
+    min_launch_mid=60,
+    min_launch_late=80,
 )
 
 import os
