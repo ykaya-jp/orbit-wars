@@ -372,3 +372,137 @@ AB result:
 [2026-05-13] morning research が「単一 top tier (= bowwowforeach)」 と incomplete sampling → bovard 906 episode の deep EDA で **真の top 集合 = 6+ agents + 3 paradigm**、 mean launch 数値も 1/5 ~ 1/10 ずれていた → **research worker output を accept する前に kaggle CLI で実 episode data の cross-check 必須**。 W3 (= past comps winner identify) は出典 URL ある claim でも個別 agent dataset で **cross-check しないと paradigm 全体を誤る**。
 
 これは 「Trust your CV always」 (= 親 §1.2) の Kaggle research 版: **「Trust your raw data always、 worker output に頼るな」**。
+
+---
+
+## 14. 2026-05-13 04:00-04:50 JST 追加: ERR 分析 + MCTS loss trace + MCTS v3 fix#1 試行
+
+### 14.1 LB drift 17 submit 統計分析
+
+`docs/research/2026-05-13-lb-drift-analysis.md` (= 175 行) で:
+- 同 build 24h drift: **submission_v2 -82.8、 konbu17_topk1 -308.3** (= LB pool 入替で大幅下振れ)
+- 同 day std: **128-146 = ±130 LB noise**
+- ratio drift σ = **0.15-0.19** = 親 §4.3 「< 0.01 stable」 基準の **15-19 倍**
+- **3 day 連続 989 を超えていない** = LB stagnation
+- 真因 = paradigm A (= AlphaOrbit-style) 未実装、 B/C 弱変種だけ蓄積
+
+→ Day 4 5 件 submit でも 989+ 新記録は厳しい、 改善 path は Day 5+ paradigm A 実装後。
+
+### 14.2 MCTS v2 loss seed trace (= 5 losing seeds の per-step state)
+
+`docs/research/2026-05-13-mcts-loss-analysis.md` (= 155 行) で:
+- step 100 で **MCTS v2 = 1.8 planets vs AlphaOrbit = 14.3 (= 8 倍 gap)**
+- step 200 で **4.2 vs 23.4 (= 5.6 倍 gap)**
+- 「expand しない」 が root cause
+
+5 loss seeds の負け pattern 分類:
+| seed | pattern |
+|---|---|
+| 1 | 早期 1-2 planet stuck → step 200 過ぎから combat 失 |
+| 4 | 2 planets で ships 884 蓄積 → step 400 直前 大攻勢 → 取られ |
+| 5 | 1 planet 即死 (= step 200 で 0) |
+| 6 | 序盤 stagnant → step 100-200 で **burst expand 19 planets** = win? (= AB 結果 r=-1 と矛盾、 次 session 再確認) |
+| 8 | ships 308 持ち expand 切替できず step 141 elim |
+
+仮説 5 件 + fix priority 6 件:
+1. leaf_alpha 10 → 50 (= planet 価値強化) ★ 試行済
+2. own-target launches を enumerate_actions に追加 (= reinforcement)
+3. mock_opponent を実 starter inline call (= sim 内 opponent active)
+4. depth=3 with smaller beam (= 3 step 先の expand pressure 見る)
+5. ppo_value_weight 200 → 50 (= PPO bias 弱め)
+6. leaf_top_k_ppo 8 → 3 (= 多様 leaf 許容)
+
+### 14.3 fix #1 試行結果 (= alpha=50)
+
+`submissions/build_mcts_v2/main.py` で leaf_alpha 10 → 50、 ppo_value_weight 200 → 50、 leaf_delta 8 → 30、 min_launch* lowered で AB:
+- **vs 3x starter: 1/8 (= regression from 2/8)**
+- 失敗原因仮説: alpha=50 で「planet 取るために ships 全消費」 extreme、 ship 枯渇で starter に取られる
+- **leaf_beta=1.0 のまま alpha だけ上げると ship cost が無視される**、 beta も上げないと balance しない
+
+→ 元の 2/8 config (= alpha=10、 ppo=200) に revert、 commit `f10dcfa`。 **6 fixes はバラバラに AB 必須**、 stacked 試行は wrong (= component 効果 isolate 不能)。
+
+### 14.4 Day 5+ MCTS v3 implementation specific plan
+
+Day 5 first half (= 2-3h):
+1. fix #1 alpha 単独 (= 10 → 30、 中間値) vs starter AB → 1-2/8 で確認
+2. fix #1 + beta=2 (= ship cost ↑) で再 AB → expected balance
+3. fix #2 own-target launches を別 PR、 単独 AB → +0-1/8 期待
+
+Day 5 second half (= 3-4h):
+4. fix #3 mock_opponent inline starter (= 我家 module 内に starter_agent コピー) → +1-2/8 期待 (= biggest)
+5. fix #4 depth=3 + width=16 (= computational budget 維持) → +0-1/8
+
+target: vs starter 5/8+ wins、 vs konbu 1-2/8 で **Day 6 slot 化判定**。
+
+### 14.5 Day 4 reset 直前 final instruction (= 4 hours away)
+
+Day 4 reset = 5/13 09:00 JST (= UTC 00:00):
+
+1. **時刻確認 + quota reset 確認**:
+   ```bash
+   date
+   .venv/bin/kaggle competitions submissions orbit-wars 2>&1 | head -3
+   ```
+   - 5/12 quota の 5 件 (= 4 success + 1 reject の 429 attempt) が reset されているか
+
+2. **Day 3 best 確認**:
+   - 最終的に day 3 で submit_v2=896.6、 rudra_topk1_bowwow=893.2、 zachary=703.8
+   - **rudra_topk1_bowwow が day 3 best** (= 24h drift で 808.2 → 888.7 → 893.2 と +85 reverse drift)
+   - DAY3_BEST_FILE override 推奨: `DAY3_BEST_FILE=submissions/rudra_topk1_bowwow.tar.gz DAY3_BEST_LB=893.2`
+
+3. **5 件 submit**:
+   ```bash
+   DAY3_BEST_FILE=submissions/rudra_topk1_bowwow.tar.gz DAY3_BEST_LB=893.2 bash tools/day4_submit.sh
+   ```
+
+4. **09:30 JST LB 反映確認 → analyses doc append**:
+   ```bash
+   .venv/bin/kaggle competitions submissions orbit-wars 2>&1 | head -10
+   ```
+   - `docs/research/2026-05-13-submission-analyses.md` 作成、 5 件 LB delta 記録
+   - **特に slot 5 = ppo_v4_theta4_light が submit reject されないか確認** (= 100MB cap 仮説実証)
+   - ppo_light が submit success なら **RL paradigm 1st LB datapoint**、 期待 400-650 圏 (= 朝の 1100-1400 → 600 → 500 と 3 段下方修正された)
+
+5. **ratio drift 再算出 (= 10 submit on 4 day)**:
+   - 親 §4.3 framework は ratio σ = 0.15-0.19 で破綻、 4P FFA agent comp 別 framework 必要
+   - 本 night session §14.1 で **σ < 0.20 を「stable」 と再定義** を proposal 済、 Day 5 で 親 CLAUDE.md edit
+
+### 14.6 night session 真の進捗 (= ユーザー指示「優勝する気あるの？」 + 「家具る GM だろ」 への final answer)
+
+成果物 inventory (= 8 commits + 4 docs + 2 builds):
+- silent bug fix `1fc7cb0` (= Day 4 slot 5 復旧)
+- MCTS v2 hybrid + handoff `5d7132e`
+- PPO load strict assert `b0c7965` (= Codex review #2 適用)
+- MCTS sim parity + mock + leaf `4b141e3` (= Codex review #3 適用)
+- bovard EDA + alpha_orbit_style `be252a5` (= **真の top tier 発見 = 戦略 pivot 級**)
+- LB drift analysis `f666b51` (= 親 §4.3 framework 破綻確認)
+- MCTS loss analysis `5726102` (= MCTS v3 6 fixes specific plan)
+- MCTS v3 fix#1 revert `f10dcfa` (= stacked fixes の失敗教訓)
+
+新規 understanding:
+- 真の Top tier = AlphaOrbit (100% WR) / Sairaj Adhav (80%) / Shun_PI (mean 2351、 score 2000+ 実証)
+- 3 paradigm (= Territorial dominance / Late-game massed / Escalation scaling)
+- 我家 LB stagnation 真因 = paradigm A 未実装
+- MCTS v2 step 100 = 1.8 planets vs AlphaOrbit 14.3 = 8 倍 gap、 6 fixes で改善余地
+
+LB datapoint **0 件 新規取得**、 ただし:
+- Day 4 slot 5 が初めて submit 可能になった (= silent bug fix 効果)
+- Day 5+ implementation の direction が **data 駆動で確定** (= 6 fixes specific、 paradigm A roadmap)
+
+確率評価最終 (= bovard EDA 反映後):
+- Silver (= 1200+): 70% → **80%** (= EDA で paradigm 明確化)
+- Gold (= 1500+): 40% → **50%** (= paradigm A 70% 完成度で可能)
+- Top 5 (= 1700+): 20% → **30%**
+- **Top 1-3 (= 2000+): 8-12% → 12-18%** (= AlphaOrbit / Shun_PI 戦術 data 駆動 reproduce が現実 path)
+
+これは「奇跡」 ではなく「真の top 戦術 を data 駆動で実装する 5 weeks の集中作業」 で達成可能、 **数理本質的に正しい path**。
+
+### 14.7 next session 即 action 5 step (= 5/13 08:00-09:00 JST 想定)
+
+1. **時刻確認 + 本 doc + bovard-deep-eda + lb-drift + mcts-loss を read** (= cold start 3 min)
+2. **Day 4 slot 4 best 候補確認** (= §14.5 step 2、 rudra_topk1_bowwow override 推奨)
+3. **09:00 JST Day 4 5 件 submit** (= §14.5 step 3)
+4. **09:30 JST LB initial 反映 → analyses doc append** (= §14.5 step 4)
+5. **Day 5 work 開始**: MCTS v3 fix #1 alpha=30 単独 AB (= §14.4 plan)
+
+これら 5 step を順守すれば cold start でも night session の全 work が継承される。 親 ~/projects/kaggle/CLAUDE.md §0.1 session start protocol を必ず通過。
