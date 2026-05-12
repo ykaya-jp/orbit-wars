@@ -30,7 +30,7 @@ declare -a BUILDS=(
   "fleet_angle_zachary_v3:submissions/build_fleet_angle_zachary_v3/main.py"
   "fleet_angle_zachary_v5:submissions/build_fleet_angle_zachary_v5/main.py"
   "marcodg_topk1:submissions/build_marcodg_topk1/main.py"
-  "ppo_v4_theta4:submissions/build_ppo_v4_theta4/main.py"
+  "ppo_v4_theta4_light:submissions/build_ppo_v4_theta4_light/main.py"
 )
 
 OVERALL_OK=0

@@ -77,10 +77,12 @@ submit "4. marcodg+topk1 NEW" \
   "submissions/marcodg_topk1.tar.gz" \
   "phase-day4-marcodg (marcodg LB 1060 claim + topk1 wrapper, 別 paradigm)"
 
-# 5. PPO θ.4 200k step PFSP ★ (= IL+RL paradigm 1st mainstream datapoint)
-submit "5. PPO θ.4 200k PFSP ★" \
-  "submissions/ppo_v4_theta4.tar.gz" \
-  "phase-theta4 (MaskablePPO 200k step PFSP, explained_variance 0.95, A100 Colab Pro+ 7h, LB 1100-1400 期待)"
+# 5. PPO θ.4 200k PFSP **lightweight** ★ (= 100 MB cap 仮説実証 + RL paradigm 1st LB datapoint)
+# 軽量化: 425 MB → 64.5 MB (= optimizer drop + FP16 cast、 tools/build_ppo_lightweight.py 経由)
+# 仮説: 100 MB cap 確証済 (Lux S3 1st Frog Parade writeup + W6 source audit) → submit success 期待
+submit "5. PPO θ.4 200k PFSP light ★" \
+  "submissions/ppo_v4_theta4_light.tar.gz" \
+  "phase-theta4-light (MaskablePPO 200k step PFSP + lightweight 64.5MB = optimizer drop + FP16, RL paradigm 100MB cap 実証 + LB 1st datapoint)"
 
 echo ""
 echo "=== Day 4 submissions complete ==="
