@@ -39,10 +39,12 @@ if str(_HERE) not in sys.path:
 from mcts_orbit_wars import BeamConfig, select_action
 
 _CFG = BeamConfig(
-    # Shallow beam: depth=3 with a starter-faithful mock was still 0/8 vs
-    # starter, so try a simpler one-step search with a wider beam and a more
-    # honest action threshold. Real starter only fires when ships // 2 >= 20
-    # so anything below 40 ships is wasted expansion.
+    # Reverting to the depth=1 + alpha=10 + ppo_weight=200 config that hit
+    # 2/8 vs starter post sim-parity fix. Tried alpha=50 to over-weight
+    # planet capture and saw 1/8 -- ship cost dominated, search starved
+    # itself out. The 6-fix list in docs/research/2026-05-13-mcts-loss-
+    # analysis.md needs careful per-fix AB measurement, not a stacked
+    # attempt in one shot.
     depth=1,
     beam_width=32,
     fractions=(0.5, 0.85, 1.0),
