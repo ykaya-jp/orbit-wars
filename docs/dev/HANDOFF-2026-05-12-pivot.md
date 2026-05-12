@@ -131,14 +131,10 @@
    - Cell A `ls /content/drive/MyDrive/orbit-wars/ppo_pfsp_pool_theta5/`
    - Cell B `tail -30 ppo_v5_theta5_training.log` + `stat` で更新時刻
    - Cell C `nvidia-smi` + `pgrep -af train_ppo_pfsp`
-4. **Phase β.1 着手** = `tools/build_ppo_lightweight.py` 実装:
-   - sb3 zip 読み込み → policy state_dict 抽出 → torch.save
-   - FP16 cast (= state_dict[k] = v.half())
-   - 自前 forward 実装 (= sb3 dep 削除、 torch のみ inference)
-   - size 計測 (= 100 MB cap クリア確認)
-5. **build_ppo_v4_theta4_light/ 構築** (= main.py + state.pt + orbit_wars/、 ppo_inference.py rewrite)
-6. **local smoke** = `bash tools/smoke_day4.sh` を更新 / build_ppo_v4_theta4_light 追加
-7. **Day 4 slot 構成 update** = `tools/day4_submit.sh` + `.criteria/kaggle-orbit-wars-day4-submit-2026-05-13.yaml` を §6 新 slot に rewrite
+4. ~~Phase β.1 = build_ppo_lightweight.py 実装~~ **✅ 完了 (= 4734b87、 2026-05-12 10:10 JST)**
+5. ~~build_ppo_v4_theta4_light/ 構築~~ **✅ 完了 (smoke PASS)**
+6. **smoke 全 5 build 確認** = `bash tools/smoke_day4.sh` (= 既に light build 含む、 sanity 確認のみ)
+7. **`.criteria/kaggle-orbit-wars-day4-submit-2026-05-13.yaml` rewrite** = slot 5 を light build に明記 (= day4_submit.sh は既 update、 criteria も整合 必要)
 8. **W2 retry** (= 22:00 JST rate limit reset 済): forum bowwowforeach 投稿確認 + 公開 kernel 17+ size 再確認
 9. **Phase α.2 first cut** = `tools/mcts_orbit_wars.py` skeleton + `submissions/build_mcts_v1/main.py` (= MCTS depth 3 + heuristic、 5/13 09:00 までに 1 ep 完走確認)
 10. **Day 4 reset (= 5/13 09:00 JST) 後**: `bash tools/day4_submit.sh` で 5 slot 一括 submit (= 軽量化 PPO + MCTS v0 含む)
@@ -149,15 +145,23 @@
 ## 8. 現状 commits (= ykaya-jp/orbit-wars main HEAD)
 
 ```
+4734b87 feat(phase-beta-1): PPO lightweight build = 425MB → 64.5MB (= 84.8% 削減) ★
+9a68875 docs(handoff): 2026-05-12 morning session pivot handoff
 42b1147 feat(phase-alpha-1): bowwow reverse engineer 進捗 + MCTS design hints
 4359328 docs(roadmap-pivot): Day 3 LB 反映 + GM-level victory research 統合
 93457ac feat(p1-day4): day4_submit.sh + smoke + analyses doc skeleton
 5075369 docs(claude): project-local CLAUDE.md with session start/end protocol
 737d033 docs(handoff): comprehensive session handoff for next-context continuation
 069511d feat(p2-done): θ.4 200k PFSP build + Day 4 slot 5 confirmed
-197fca4 feat(day5+infra): best-practice 1M step notebook + Drive pull/build script
-a1ff9c8 feat(rl): LR cosine schedule + ent_coef anneal (Day 5+ best practices)
 ```
+
+### Phase β.1 完了 詳細 (= 4734b87、 2026-05-12 10:10 JST)
+
+- `tools/build_ppo_lightweight.py`: sb3 zip → optimizer drop + FP16 cast
+- `agents/proxy/ppo_v4_theta4_light.zip`: 86 MB (= 82.7% 削減 from 495 MB)
+- `submissions/build_ppo_v4_theta4_light/`: smoke PASS (step 249, duration 1.4s)
+- `submissions/ppo_v4_theta4_light.tar.gz`: **64.5 MB** (= 100 MB cap の 64.5%、 大幅 margin)
+- `tools/day4_submit.sh` slot 5 + `tools/smoke_day4.sh` を light build に swap 済
 
 ---
 
