@@ -11,9 +11,10 @@
 
 1. **本ファイル** (`./CLAUDE.md`) を read (= 今この瞬間)
 2. **最新 HANDOFF doc を first read**:
-   - **`docs/dev/HANDOFF-2026-05-12-pivot.md`** ★ ← 現在の latest (= 2026-05-12 10:00 JST、 roadmap pivot 後)
-   - これに本 session の最終 state、 完了 work、 next action、 重要 path、 失敗教訓が **comprehensive に記載**
-   - 前 handoff (= `HANDOFF-2026-05-12.md`、 5/11 night 起票) は historical、 ただし low-level 詳細 (= file inventory、 Drive 状態) は依然有効
+   - **`docs/dev/HANDOFF-2026-05-12-night.md`** ★ ← 現在の latest (= 2026-05-12 23:30 JST、 night session 終了時、 Day 4 reset 直前 cold-start 用)
+   - これに本 session の最終 state、 完了 work、 next action 7 step、 重要 path、 失敗教訓が **comprehensive に記載**
+   - 前 handoff (= `HANDOFF-2026-05-12-pivot.md`、 5/12 morning pivot 後) は historical pivot 起源、 ただし roadmap pivot の全体像は依然有効
+   - 前々 handoff (= `HANDOFF-2026-05-12.md`、 5/11 night 起票) も historical、 low-level 詳細は依然有効
 3. その上で `git log --oneline -20` で最新 commit 確認、 `kaggle competitions submissions orbit-wars` で submit 状況確認
 4. handoff doc の §11 「Next session 即 action」 に従って 1 つずつ実行
 
