@@ -12,18 +12,44 @@
 
 | Slot | Submission ID | File | Initial LB (09:30) | 1h 後 (10:30) | 24h 後 resample (5/13 09:00) | Expected LB | Diff vs Expected | Ratio (LB/Exp) |
 |---|---|---|---|---|---|---|---|---|
-| 1 | TBD | submission_v2.tar.gz | TBD | TBD | TBD | 989 | TBD | TBD |
-| 2 | TBD | konbu17_topk1.tar.gz | TBD | TBD | TBD | 922 | TBD | TBD |
-| 3 | TBD | ppo_v3_theta3.tar.gz | TBD | TBD | TBD | 600-800 (= unknown) | TBD | TBD |
-| 4 | TBD | fleet_angle_zachary.tar.gz | TBD | TBD | TBD | 1100-1300 (= zachary base + fleet.angle backport +100-200) | TBD | TBD |
-| 5 | TBD | rudra_topk1_bowwow.tar.gz | TBD | TBD | TBD | 900-1100 (= rudra base 692 + 大 fleet +200-400) | TBD | TBD |
+| 1 | 52559128 | submission_v2.tar.gz | **954.1** | TBD | TBD | 989 | -34.9 | 0.965 |
+| 2 | 52559144 | konbu17_topk1.tar.gz | **600.0** ⚠️ | TBD | TBD | 922 | -322 | 0.651 |
+| 3 | ❌ | ppo_v3_theta3.tar.gz | **400 reject** (= size 428 MB > 100 MB cap) | — | — | 600-800 | — | — |
+| 4 | 52559206 | fleet_angle_zachary.tar.gz | **703.8** ⚠️ | TBD | TBD | 1100-1300 | -396~596 | 0.541~0.640 |
+| 5 | 52559222 | rudra_topk1_bowwow.tar.gz | **808.2** | TBD | TBD | 900-1100 | -92~292 | 0.735~0.898 |
 
 **Expected LB 校正済 計算式** (Day 2 ratio σ=0.13 over-optimistic 反映):
 - 既 LB-tested は actual LB をそのまま expected に
 - 新規 submit は local 4P win rate × 800-900 + 既存 paradigm との類似度補正
 
-**現状 LB best**: 989.2 (5/10 submission_v2 = phase-α+β+γ konbu17 hybrid + Tamrazov 1224 + ML validator)
-**今回 best 目標**: ≥ 1100 (= Top 30 圏入り、 IL paradigm 生死判明 + RL paradigm 1st datapoint)
+**現状 LB best**: 989.2 (5/10 submission_v2)、 ただし **今 24h resample で 954.1 に減衰**、 真の安定値 ~954
+**今回 best 目標**: ≥ 1100 → **実達 808.2 (= rudra_topk1_bowwow が Day 3 best、 全件 989 下回り)**
+**Day 3 真評価**: ❌ **全 仮説 (H1-H5) 期待値 大幅下振れ**、 LB pool shift 顕著、 戦略 pivot 必要 (= 後述 §「仮説帰納 + roadmap pivot」)
+
+---
+
+### 仮説帰納 + roadmap pivot (= 2026-05-12 09:35 JST 追記)
+
+#### H1 完全失敗 の真因 (= fleet_angle_zachary 703.8、 期待 1100-1300、 delta -400~600)
+- 真因解析の誤り: **fleet.angle defense 不在は zachary 600 LB の主因ではない**
+- W3 (= top-tier profile 研究) 出典: **bowwowforeach (LB 1 / 1823) は pure rule-base + 探索 (= chokudai/SA/beam)**、 bovard 行動分布で launch p99 3647 ships = 「**low-freq big-stack kill stack**」 戦術。 zachary は逆に rapid expansion で kill stack 形成しない paradigm
+- → zachary base の本当の弱さは「expansion 不足」 ではなく「**long-term plan 不在**」 (= step ごとの局所 greedy)
+
+#### Day 2-3 全体 整合性 観察
+- Day 2 LB best 989 → Day 3 同 file 再 submit で 954 = **24h drift -35 安定**、 ratio σ ≈ 0.036 (= 過去 5 件で σ 0.13 比改善、 ただし still > 0.01 threshold)
+- konbu17_topk1 (= Day 2 905 / Day 3 600) = **-305 大暴落** = LB pool 全体の strong agent 投入で **mid-tier が relative downgrade**
+- 全体観: 我家 paradigm (= konbu17 / rudra / zachary) は **5/10 比 -15-30% LB 下振れ**
+
+#### roadmap pivot 結論 (= W3 + W5 統合)
+- **RL paradigm の天井 = 1500-1650** (= Isaiah Pressman = Lux S3 1st 作者 が LB 5 / 1548 で止まり) ← target 2000+ に届かない
+- **bowwow 流 rule-base + forward search hybrid が必須** = Phase α 最優先
+- 既存 PPO 投資 (= θ.4 完走、 θ.5 走行中) は **MCTS / beam search leaf evaluator として再利用** (= sunk cost 回収)
+- 詳細: `docs/strategy/2026-05-12-roadmap-pivot.md` (= 起票予定)
+
+#### Day 4 plan 影響 (= 必要 update)
+- slot 1 = Day 3 best 再 submit (= **rudra_topk1_bowwow 808.2、 但し 24h drift 観察必要**)
+- slot 2-4 = 新規 rule+探索 hybrid 試作 (= bowwow counter プロトタイプ、 if 1 day で実装可)
+- slot 5 = PPO θ.4 軽量化 (= state_dict + FP16、 < 100 MB) submit test = RL paradigm の真 LB datapoint 取得
 
 ---
 
@@ -31,11 +57,11 @@
 
 | Slot | Source 変更 (= Day 2 比) | LB delta | est_score (local 4P %) | 真効果判定 |
 |---|---|---|---|---|
-| 1 (safety) | 既存 best 再 submit | TBD | n/a | 24h resampling drift 計測 |
-| 2 (konbu17+topk1 再) | Day 2 と同 file 再 submit | TBD | n/a | 同上 |
-| 3 (PPO θ.3) | **新 paradigm = RL** (vs Lakhindar IL + rule-base 50k step training) | TBD | TBD | RL paradigm 生死判明 |
-| 4 (fleet_angle_zachary) | **NEW: zachary + fleet.angle defense backport** (Day 2 review +ROI 最大) | TBD | smoke vs starter 勝利 (= reward +1.0) | fleet.angle exploit 真効果 (= zachary 600 base から +100-500 期待) |
-| 5 (rudra_topk1_bowwow) | rudra MIN_SHIPS=15 + FRAC=0.85 + topk1 | TBD | TBD | rudra paradigm 強化、 大 fleet 戦術の効果 |
+| 1 (safety) | 既存 best 再 submit | -25 (= 979.4 → 954.1) | n/a | **ratio drift downward** = LB pool shift (= 上位選手 strong agent 投入で全体 score 下振れ)、 我家 baseline 自体 -25 |
+| 2 (konbu17+topk1 再) | Day 2 と同 file 再 submit | **-322** (= 922 → 600) ⚠️ | n/a | **大暴落**。 24h resampling で同 file がここまで落ちる = LB pool 全体が **shift up** (= 上位選手 LB 1500+ 帯への上振れ) で我家 mid-tier が relative downgrade |
+| 3 (PPO θ.3) | **新 paradigm = RL** | **submit reject** | TBD | **submission size limit 100 MB cap 確定** (= 一次資料 Lux S3 1st writeup + W6 source audit、 428 MB は 4-5x 超過)。 RL paradigm 全体 submit 不可、 軽量化必須 |
+| 4 (fleet_angle_zachary) | NEW: zachary + fleet.angle defense | **+103.8** (= 600 → 703.8、 H1 期待 +500 大失敗) ⚠️ | smoke vs starter +1.0 win | **H1 完全失敗**。 真因解析誤り = fleet.angle backport 単独効果は ~+100 帯、 zachary base の弱さは fleet.angle 不在ではなく **expansion 不足** (= W3 bowwow 流の指摘と整合) |
+| 5 (rudra_topk1_bowwow) | rudra MIN_SHIPS=15 + FRAC=0.85 + topk1 | **+115.9** (= 692 → 808.2) | TBD | rudra base からは +ROI、 ただし absolute LB 808 で 989 base 下回り。 大 fleet 戦術は鋸の中程 |
 
 ---
 
