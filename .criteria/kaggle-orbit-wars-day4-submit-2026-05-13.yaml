@@ -41,15 +41,15 @@ build_inventory_2026_05_11:
   - build_ppo_v4_theta4: Colab 200k step 完成次第 (= Tier 2 main)
 
 day4_slot_recommendation:
-  # Day 3 LB 反映で 各 slot 最終確定、 以下 default 案
-  # 2026-05-12 update: PPO θ.4 (= 200k step PFSP) Colab 完走 + local build 完了、
-  #   submissions/ppo_v4_theta4.tar.gz (= 425 MB) ready。 explained_variance 0.7-0.9
-  #   train log で確認 (= healthy value function)。 vs starter / vs v3 local AB は 1 ep noise。
-  slot_1: "Day 3 best 再 submit (= 24h resample、 ratio drift calibrate)"
-  slot_2: "build_fleet_angle_zachary_v3 (= main rule paradigm)"
-  slot_3: "build_fleet_angle_zachary_v5 (= bovard 数値 駆動 ablation = step 300+ fleet boost)"
-  slot_4: "build_marcodg_topk1 (= 別 paradigm = beam search + 我家 topk1 lift)"
-  slot_5: "ppo_v4_theta4.tar.gz ★ (= 200k PFSP 完走、 IL+RL paradigm、 LB 1100-1400 期待)"
+  # 2026-05-12 morning session pivot 反映:
+  #   - Day 3 LB best = rudra_topk1_bowwow 808.2 (= 全 4 件 989 下回り、 H1 完全失敗)
+  #   - submission size cap = 100 MB 確定 (= W1/W6 一次資料、 Lux S3 1st writeup)
+  #   - Phase β.1 完了: 425 MB → 64.5 MB (= 84.8% 削減、 100 MB cap の 64.5%)
+  slot_1: "rudra_topk1_bowwow.tar.gz (= Day 3 best 再 submit、 24h resample + ratio drift calibrate)"
+  slot_2: "build_fleet_angle_zachary_v3 (= main rule paradigm、 Day 3 v0 失敗を受けて ablation)"
+  slot_3: "build_fleet_angle_zachary_v5 (= bovard step 300+ 3.4x 数値駆動 ablation)"
+  slot_4: "build_marcodg_topk1 (= 別 paradigm、 marcodg LB 1060 claim + topk1)"
+  slot_5: "ppo_v4_theta4_light.tar.gz ★ (= 軽量化 64.5 MB、 RL paradigm 100 MB cap 仮説実証 + LB 1st datapoint)"
 
 baseline:
   - metric: lb_best_after_day3
@@ -83,35 +83,35 @@ acceptance_criteria:
     path: docs/strategy/2026-05-11-score-2000-roadmap.md
 
   - id: AC-2
-    description: build_fleet_angle_zachary_v2 (= end-game pile-up) submit-ready package
+    description: build_fleet_angle_zachary_v3 (= main rule paradigm) submit-ready package
     type: output_exists
     severity: required
-    path: submissions/build_fleet_angle_zachary_v2/main.py
+    path: submissions/build_fleet_angle_zachary_v3/main.py
 
   - id: AC-3
-    description: build_lakhindar_pure (= Day 3 延期分、 IL paradigm 生死判明用)
+    description: build_ppo_v4_theta4_light (= Phase β.1 軽量化 PPO、 100 MB cap 仮説実証用)
     type: output_exists
     severity: required
-    path: submissions/build_lakhindar_pure/main.py
+    path: submissions/build_ppo_v4_theta4_light/main.py
 
   - id: AC-4
-    description: build_expansion_pure (= P3 = Expansion rule mission)
+    description: build_marcodg_topk1 (= 別 paradigm)
     type: output_exists
     severity: required
-    path: submissions/build_expansion_pure/main.py
+    path: submissions/build_marcodg_topk1/main.py
 
   - id: AC-5
-    description: tools/day4_submit.sh が Day 4 5 件構成に起票されている (= Day 3 LB 反映後に slot 1 を data driven 選択)
+    description: tools/day4_submit.sh が pivot 反映 5 slot 構成 (= 2026-05-12 morning session 後)
     type: manual_review
     severity: required
     rubric: |
       reviewer agent が以下を確認:
-      - tools/day4_submit.sh が新規作成され、 5 件 submit を実行
-      - slot 1 = Day 3 best 再 submit (= 24h resample TrueSkill 安定)
-      - slot 2 = build_fleet_angle_zachary_v2 (= end-game pile-up Tier 3 #4)
-      - slot 3 = build_lakhindar_pure (= IL paradigm 生死判明)
-      - slot 4 = build_expansion_pure (= P3 rule mission)
-      - slot 5 = build_orbitwork_v14 or Day 3 で良かった variant (= data driven)
+      - tools/day4_submit.sh が pivot 反映 5 slot:
+      - slot 1 = ${DAY3_BEST_FILE:-submission_v2.tar.gz} (= rudra_topk1_bowwow.tar.gz 推奨、 Day 3 best 808.2)
+      - slot 2 = build_fleet_angle_zachary_v3 (= main rule paradigm)
+      - slot 3 = build_fleet_angle_zachary_v5 (= bovard step 300+ 3.4x ablation)
+      - slot 4 = build_marcodg_topk1 (= 別 paradigm)
+      - slot 5 = ppo_v4_theta4_light.tar.gz ★ (= 64.5 MB、 100 MB cap 仮説実証)
       - Day 3 LB 反映を反映した expected LB が各 slot に記載
 
   - id: AC-6
