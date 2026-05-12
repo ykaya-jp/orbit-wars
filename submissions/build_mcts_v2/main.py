@@ -39,27 +39,28 @@ if str(_HERE) not in sys.path:
 from mcts_orbit_wars import BeamConfig, select_action
 
 _CFG = BeamConfig(
-    depth=3,
-    beam_width=24,
+    # Shallow beam: depth=3 with a starter-faithful mock was still 0/8 vs
+    # starter, so try a simpler one-step search with a wider beam and a more
+    # honest action threshold. Real starter only fires when ships // 2 >= 20
+    # so anything below 40 ships is wasted expansion.
+    depth=1,
+    beam_width=32,
     fractions=(0.5, 0.85, 1.0),
-    min_launch_ships=100,
-    min_send_fraction=0.85,
+    min_launch_ships=40,
+    min_send_fraction=0.5,
     leaf_alpha=10.0,
     leaf_beta=1.0,
     leaf_gamma=1.0,
     leaf_delta=8.0,
     terminal_bonus=1000.0,
     max_top_actions_per_step=50,
-    # Hybrid: PPO V(s) is in [-1, +1] and handcrafted is ~50-400 mid-game.
-    # ppo_value_weight=200 matches their magnitudes so PPO actually steers
-    # the top-K choice rather than being washed out by handcrafted noise.
     handcrafted_weight=1.0,
     ppo_value_weight=200.0,
-    leaf_top_k_ppo=8,
+    leaf_top_k_ppo=12,
     step_dependent_prune=True,
     phase_mid_start=50,
     phase_late_start=300,
-    min_launch_early=15,
+    min_launch_early=40,
     min_launch_mid=60,
     min_launch_late=80,
 )

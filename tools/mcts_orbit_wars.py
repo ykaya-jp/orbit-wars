@@ -63,6 +63,14 @@ class BeamConfig:
     leaf_beta: float = 1.0  # weight on my_ships_total
     leaf_gamma: float = 1.0  # weight on enemy_ships_total (subtracted)
     leaf_delta: float = 8.0  # weight on enemy_planets (subtracted)
+    # Future-ship potential: each owned planet produces ``prod`` ships per
+    # remaining turn. Capturing high-prod planets early is strictly more
+    # valuable than capturing the same count of low-prod ones, but the count-
+    # only leaf score can't see that. Weight 1.0 means "treat each future
+    # ship the same as a current ship".
+    leaf_epsilon: float = 1.0  # weight on (my_prod * remaining_steps)
+    leaf_zeta: float = 0.7  # weight on (enemy_prod * remaining_steps) (subtracted)
+    leaf_episode_horizon: int = 500  # engine max episodeSteps -- used to bound remaining_steps
     terminal_bonus: float = 1000.0
     sim_speed: float = 5.0  # forward Euler unit/turn (simplification)
     max_top_actions_per_step: int = 50  # safety cap on action enumeration
@@ -343,32 +351,44 @@ def enumerate_actions(state: SimState, player: int, cfg: BeamConfig) -> list[Act
 def _mock_opponent_actions(state: SimState, player: int) -> list[Action]:
     """Cheap heuristic for other-player moves used during simulation rollout.
 
-    Mirrors the starter agent shape: each owned planet with >=15 ships fires
-    half-stack at the nearest non-owned planet.
+    Faithfully mirrors ``orbit_wars.starter_agent`` (engine source line 778):
+      - Only consider STATIC targets (orbital_r + radius >= ROTATION_RADIUS_LIMIT).
+      - For each of our planets, fire half-stack at the nearest static enemy/neutral.
+      - Send ships only if ships // 2 >= 20.
+
+    Previous version targeted *any* non-owned planet with ships >= 15, which
+    was much more aggressive than the real starter -- the MCTS search treated
+    its rivals as predators and over-defended, leading to 0/8 vs real starter.
     """
     actions: list[Action] = []
     own = [p for p in state.planets.values() if p.owner == player]
-    others = [p for p in state.planets.values() if p.owner != player]
-    if not own or not others:
+    if not own:
+        return actions
+    static_targets = [
+        p
+        for p in state.planets.values()
+        if p.owner != player
+        and (math.hypot(p.x - SUN_X, p.y - SUN_Y) + p.radius) >= ROTATION_RADIUS_LIMIT
+    ]
+    if not static_targets:
         return actions
     for src in own:
-        if src.ships < 15.0:
+        if src.ships <= 0:
             continue
-        # nearest target
+        # nearest static target
         best_tgt = None
         best_d = float("inf")
-        for t in others:
+        for t in static_targets:
             d = math.hypot(t.x - src.x, t.y - src.y)
             if d < best_d:
                 best_d = d
                 best_tgt = t
         if best_tgt is None or best_d < 1.0:
             continue
-        send = max(5.0, src.ships * 0.5)
-        if send > src.ships - 1.0:
-            send = src.ships - 1.0
-        if send < 5.0:
+        send_int = int(src.ships) // 2
+        if send_int < 20:
             continue
+        send = float(send_int)
         speed = fleet_speed(send)
         eta = best_d / max(speed, 0.5)
         actions.append(
@@ -402,7 +422,20 @@ def _apply_launches(state: SimState, actions: list[Action], player: int) -> None
 
 
 def _resolve_arrivals(state: SimState) -> None:
-    """Group fleets by target and apply engine-style combat resolution."""
+    """Engine-faithful combat resolution (two-phase).
+
+    Mirrors orbit_wars.py:634-674. The simulator originally collapsed both
+    phases into a single sort, which let a single fleet "capture" a neutral
+    that still had its initial garrison -- a major optimism bias the search
+    used to over-attack neutrals (Codex review 2026-05-13).
+
+    Phase 1: arriving fleets fight each other -- top - second survives,
+             ties cancel to 0 ships / owner = -1.
+    Phase 2: the surviving fleet (if any) fights the existing defender:
+             - same owner: ships += survivor_ships
+             - different:  ships -= survivor_ships; if it goes negative,
+                           the survivor captures with abs(remainder).
+    """
     arrived_by_target: dict[int, dict[int, float]] = {}
     pending: list[Fleet] = []
     for f in state.fleets:
@@ -416,24 +449,34 @@ def _resolve_arrivals(state: SimState) -> None:
 
     for tgt_pid, by_owner in arrived_by_target.items():
         tgt = state.planets.get(tgt_pid)
-        if tgt is None:
+        if tgt is None or not by_owner:
             continue
-        # Defender already on the planet acts as one owner (if owned).
-        if tgt.owner >= 0:
-            by_owner[tgt.owner] = by_owner.get(tgt.owner, 0.0) + tgt.ships
-            tgt.ships = 0.0
-        # Engine combat rule: top - second survives, ties cancel everything.
+
+        # Phase 1: top-vs-second among arriving fleets (defender excluded).
         sorted_owners = sorted(by_owner.items(), key=lambda kv: -kv[1])
-        if not sorted_owners:
-            continue
         top_owner, top_ships = sorted_owners[0]
-        second_ships = sorted_owners[1][1] if len(sorted_owners) >= 2 else 0.0
-        if top_ships == second_ships and len(sorted_owners) >= 2:
-            tgt.owner = -1
-            tgt.ships = 0.0
+        if len(sorted_owners) >= 2:
+            second_ships = sorted_owners[1][1]
+            survivor_ships = top_ships - second_ships
+            if top_ships == second_ships:
+                survivor_ships = 0.0
+            survivor_owner = top_owner if survivor_ships > 0 else -1
         else:
-            tgt.owner = top_owner
-            tgt.ships = top_ships - second_ships
+            survivor_owner = top_owner
+            survivor_ships = top_ships
+
+        if survivor_ships <= 0:
+            # All arriving fleets cancelled out; defender unchanged.
+            continue
+
+        # Phase 2: surviving fleet vs current defender garrison.
+        if tgt.owner == survivor_owner:
+            tgt.ships += survivor_ships
+        else:
+            tgt.ships -= survivor_ships
+            if tgt.ships < 0:
+                tgt.owner = survivor_owner
+                tgt.ships = abs(tgt.ships)
 
 
 def _grow_planets(state: SimState) -> None:
@@ -457,13 +500,20 @@ def sim_step(state: SimState, actions_by_player: dict[int, list[Action]]) -> Non
 
 
 def evaluate_leaf(state: SimState, player: int, cfg: BeamConfig) -> float:
-    """Hand-crafted leaf scoring matching docs/research bowwow-reverse 4.3."""
+    """Hand-crafted leaf scoring matching docs/research bowwow-reverse 4.3.
+
+    Extended with a future-ship potential term so the search prefers
+    high-production planets early (= count-only leaf can't distinguish a
+    prod=1 expansion from a prod=3 expansion).
+    """
     my_planets = state.player_planets(player)
     enemy_planets = sum(1 for p in state.planets.values() if p.owner >= 0 and p.owner != player)
     my_ships = state.player_ships(player)
     enemy_ships = sum(
         p.ships for p in state.planets.values() if p.owner >= 0 and p.owner != player
     ) + sum(f.ships for f in state.fleets if f.owner != player and f.owner >= 0)
+    my_prod = sum(p.prod for p in state.planets.values() if p.owner == player)
+    enemy_prod = sum(p.prod for p in state.planets.values() if p.owner >= 0 and p.owner != player)
 
     if my_planets == 0:
         return -cfg.terminal_bonus
@@ -472,11 +522,14 @@ def evaluate_leaf(state: SimState, player: int, cfg: BeamConfig) -> float:
     if not alive:
         return cfg.terminal_bonus
 
+    remaining = max(0, cfg.leaf_episode_horizon - state.step)
     return (
         cfg.leaf_alpha * my_planets
         + cfg.leaf_beta * my_ships
         - cfg.leaf_gamma * enemy_ships
         - cfg.leaf_delta * enemy_planets
+        + cfg.leaf_epsilon * my_prod * remaining
+        - cfg.leaf_zeta * enemy_prod * remaining
     )
 
 
